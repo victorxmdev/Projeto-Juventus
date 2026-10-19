@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import { TrainingSession, Player, GoalkeeperPeriodizationDay } from '../types';
+import { TrainingSession, Player, GoalkeeperPeriodizationDay, OpponentPenaltyTaker } from '../types';
 
 export function generateTrainingSessionPdf(session: TrainingSession, allPlayers: Player[]) {
   const doc = new jsPDF({
@@ -248,4 +248,356 @@ export function generateGoalkeeperWeeklyPdf(periodization: GoalkeeperPeriodizati
 
   doc.save(`Periodizacao_Semanal_Goleiros_Juventus_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
+
+export function generateOpponentPenaltyScoutingPdf(taker: OpponentPenaltyTaker) {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  // Background header band - Juventus Grená (#631426)
+  doc.setFillColor(99, 20, 38);
+  doc.rect(0, 0, 210, 28, 'F');
+
+  // Gold accent line (#D4AF37)
+  doc.setFillColor(212, 175, 55);
+  doc.rect(0, 28, 210, 2, 'F');
+
+  // Header Titles
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('CLUBE ATLÉTICO JUVENTUS SAF • SUB-20', 14, 12);
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(245, 231, 178); // gold light
+  doc.text('DEPARTAMENTO DE PREPARAÇÃO DE GOLEIROS • SCOUTING DE PÊNALTIS ADVERSÁRIOS (TRAVE 3X3)', 14, 19);
+
+  doc.setFontSize(7.5);
+  doc.setTextColor(255, 255, 255);
+  doc.text(`DATA DO RELATÓRIO: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} • CLASSIFICAÇÃO: CONFIDENCIAL / USO INTERNO`, 14, 25);
+
+  // Kicks calculations
+  const totalKicks = taker.kicks.length;
+  const goalsCount = taker.kicks.filter(k => k.outcome === 'Gol').length;
+  const savesCount = taker.kicks.filter(k => k.outcome === 'Defendido').length;
+  const missesCount = taker.kicks.filter(k => k.outcome === 'Fora' || k.outcome === 'Trave').length;
+
+  const goalPct = totalKicks > 0 ? ((goalsCount / totalKicks) * 100).toFixed(1) : '0.0';
+  const savePct = totalKicks > 0 ? ((savesCount / totalKicks) * 100).toFixed(1) : '0.0';
+  const missPct = totalKicks > 0 ? ((missesCount / totalKicks) * 100).toFixed(1) : '0.0';
+
+  // Quadrant counts & percentages (1 to 9)
+  const qCounts: { [key: number]: number } = {};
+  const qPcts: { [key: number]: number } = {};
+  for (let q = 1; q <= 9; q++) {
+    const c = taker.kicks.filter(k => k.quadrant === q).length;
+    qCounts[q] = c;
+    qPcts[q] = totalKicks > 0 ? (c / totalKicks) * 100 : 0;
+  }
+
+  // Taker Profile Card (Left: x=14, y=34, w=115, h=38)
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(14, 34, 115, 38, 2, 2, 'F');
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(14, 34, 115, 38, 2, 2, 'S');
+
+  doc.setTextColor(99, 20, 38);
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text(taker.name.toUpperCase(), 18, 42);
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
+  doc.text(`Equipe: ${taker.team}`, 18, 48);
+  doc.text(`Camisa: #${taker.shirtNumber}  |  Posição: ${taker.position}  |  Pé Dominante: ${taker.dominantFoot.toUpperCase()}`, 18, 54);
+  if (taker.birthYear) {
+    doc.text(`Ano de Nasc.: ${taker.birthYear} (${2026 - taker.birthYear} anos)  |  Altura: ${taker.heightCm || 'N/A'} cm`, 18, 60);
+  }
+
+  // oGol link button
+  doc.setFillColor(37, 99, 235);
+  doc.roundedRect(18, 63, 50, 6, 1, 1, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'bold');
+  doc.text('↗ ABRIR PERFIL NO OGOL', 22, 67.2);
+  doc.link(18, 63, 50, 6, { url: taker.oGolUrl });
+
+  // Summary Stats Card (Right: x=133, y=34, w=63, h=38)
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(133, 34, 63, 38, 2, 2, 'F');
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(133, 34, 63, 38, 2, 2, 'S');
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(17, 30, 22);
+  doc.text('RESUMO DE DESEMPENHO', 137, 41);
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(51, 65, 85);
+  doc.text(`Cobranças Analisadas: ${totalKicks}`, 137, 48);
+
+  doc.setTextColor(22, 101, 52); // green
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Gols Marcados: ${goalsCount} (${goalPct}%)`, 137, 54);
+
+  doc.setTextColor(30, 64, 175); // blue
+  doc.text(`Defendidos: ${savesCount} (${savePct}%)`, 137, 60);
+
+  doc.setTextColor(153, 27, 27); // red
+  doc.text(`Fora / Trave: ${missesCount} (${missPct}%)`, 137, 66);
+
+  // Section Header: Trave 3x3
+  const traveStartY = 76;
+  doc.setFillColor(99, 20, 38);
+  doc.rect(14, traveStartY, 3, 5, 'F');
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(99, 20, 38);
+  doc.text('MAPEAMENTO DE FINALIZAÇÕES E GOLS SOFRIDOS (TRAVE 3X3)', 19, traveStartY + 4.2);
+
+  // Goal Frame Vector Drawing
+  const frameX = 14;
+  const frameY = 84;
+  const frameW = 114;
+  const frameH = 54;
+  const cellW = frameW / 3;
+  const cellH = frameH / 3;
+
+  // Outer Goal Border (Crossbar and Posts)
+  doc.setDrawColor(71, 85, 105);
+  doc.setLineWidth(1.2);
+  doc.rect(frameX, frameY, frameW, frameH, 'S');
+
+  // Grass line at bottom
+  doc.setDrawColor(34, 197, 94);
+  doc.setLineWidth(1.5);
+  doc.line(frameX - 2, frameY + frameH, frameX + frameW + 2, frameY + frameH);
+
+  // Quadrant Labels Map: 1 to 9
+  const quadrantNames = [
+    'Q1 (Ângulo Esq)', 'Q2 (Meio Alto)', 'Q3 (Ângulo Dir)',
+    'Q4 (Meia Alt. Esq)', 'Q5 (Centro)', 'Q6 (Meia Alt. Dir)',
+    'Q7 (Rasteiro Esq)', 'Q8 (Rasteiro Centro)', 'Q9 (Rasteiro Dir)'
+  ];
+
+  // Draw 9 Quadrants
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < 3; c++) {
+      const qNum = r * 3 + c + 1;
+      const qX = frameX + c * cellW;
+      const qY = frameY + r * cellH;
+      const count = qCounts[qNum] || 0;
+      const pct = qPcts[qNum] || 0;
+
+      // Color based on percentage (Heatmap fill)
+      if (pct >= 40) {
+        doc.setFillColor(254, 226, 226); // intense light red
+      } else if (pct >= 20) {
+        doc.setFillColor(254, 243, 199); // amber/gold light
+      } else if (pct > 0) {
+        doc.setFillColor(241, 245, 249); // subtle gray-blue
+      } else {
+        doc.setFillColor(255, 255, 255); // pure white
+      }
+      doc.rect(qX, qY, cellW, cellH, 'F');
+
+      // Grid border
+      doc.setDrawColor(203, 213, 225);
+      doc.setLineWidth(0.4);
+      doc.rect(qX, qY, cellW, cellH, 'S');
+
+      // Quadrant Label (e.g. Q1, Q2)
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(100, 116, 139);
+      doc.text(quadrantNames[qNum - 1], qX + 3, qY + 4.5);
+
+      // Percentage (Prominent in center)
+      if (pct >= 40) {
+        doc.setTextColor(153, 27, 27); // dark red
+      } else if (pct >= 20) {
+        doc.setTextColor(180, 83, 9); // dark amber
+      } else if (pct > 0) {
+        doc.setTextColor(30, 41, 59); // dark slate
+      } else {
+        doc.setTextColor(148, 163, 184); // muted slate
+      }
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${pct.toFixed(0)}%`, qX + cellW / 2, qY + 10.5, { align: 'center' });
+
+      // Count badge
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(71, 85, 105);
+      doc.text(`${count} ${count === 1 ? 'cobrança' : 'cobranças'}`, qX + cellW / 2, qY + 15, { align: 'center' });
+    }
+  }
+
+  // Trave Side Info Card (x=133, y=84, w=63, h=54)
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(133, frameY, 63, frameH, 2, 2, 'F');
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(133, frameY, 63, frameH, 2, 2, 'S');
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(99, 20, 38);
+  doc.text('PADRÃO DE FINALIZAÇÃO', 137, frameY + 7);
+
+  // Find preferred quadrant
+  let topQuadrant = 1;
+  let maxCount = -1;
+  for (let q = 1; q <= 9; q++) {
+    if (qCounts[q] > maxCount) {
+      maxCount = qCounts[q];
+      topQuadrant = q;
+    }
+  }
+
+  // Side distribution
+  const leftSideCount = qCounts[1] + qCounts[4] + qCounts[7];
+  const centerCount = qCounts[2] + qCounts[5] + qCounts[8];
+  const rightSideCount = qCounts[3] + qCounts[6] + qCounts[9];
+
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(51, 65, 85);
+  doc.text(`Quadrante Preferido: Q${topQuadrant} (${qPcts[topQuadrant].toFixed(0)}%)`, 137, frameY + 14);
+  doc.text(`Lado Esquerdo do Goleiro: ${leftSideCount} (${totalKicks > 0 ? ((leftSideCount/totalKicks)*100).toFixed(0) : 0}%)`, 137, frameY + 21);
+  doc.text(`Centro da Baliza: ${centerCount} (${totalKicks > 0 ? ((centerCount/totalKicks)*100).toFixed(0) : 0}%)`, 137, frameY + 28);
+  doc.text(`Lado Direito do Goleiro: ${rightSideCount} (${totalKicks > 0 ? ((rightSideCount/totalKicks)*100).toFixed(0) : 0}%)`, 137, frameY + 35);
+
+  doc.setFontSize(7);
+  doc.setTextColor(100, 116, 139);
+  doc.text('* Perspectiva da trave: goleiro de frente', 137, frameY + 44);
+  doc.text('  para a bola.', 137, frameY + 48);
+
+  // Technical Analysis & Goalkeeper Directive Card
+  const techY = 143;
+  doc.setFillColor(254, 252, 232); // amber light
+  doc.roundedRect(14, techY, 182, 38, 2, 2, 'F');
+  doc.setDrawColor(253, 224, 71); // amber border
+  doc.roundedRect(14, techY, 182, 38, 2, 2, 'S');
+
+  doc.setFillColor(99, 20, 38);
+  doc.rect(14, techY, 3, 38, 'F');
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(99, 20, 38);
+  doc.text('ANÁLISE DE CORRIDA & POSTURA CORPORAL:', 20, techY + 6);
+
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 41, 59);
+  const runUpLines = doc.splitTextToSize(taker.technicalAnalysis.runUpDescription + ' ' + taker.technicalAnalysis.bodyLanguage, 172);
+  doc.text(runUpLines, 20, techY + 11);
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(153, 27, 27);
+  doc.text('DIRETRIZ TÁTICA PARA O GOLEIRO DO JUVENTUS:', 20, techY + 24);
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(17, 24, 39);
+  const recLines = doc.splitTextToSize(taker.technicalAnalysis.goalkeeperRecommendation, 172);
+  doc.text(recLines, 20, techY + 29);
+
+  // Penalties History Table
+  const tableY = 186;
+  doc.setFillColor(99, 20, 38);
+  doc.rect(14, tableY, 3, 5, 'F');
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(99, 20, 38);
+  doc.text('HISTÓRICO INDIVIDUAL DE COBRANÇAS ANALISADAS', 19, tableY + 4.2);
+
+  // Table Headers
+  const thY = tableY + 8;
+  doc.setFillColor(241, 245, 249);
+  doc.rect(14, thY, 182, 6.5, 'F');
+  doc.setDrawColor(203, 213, 225);
+  doc.rect(14, thY, 182, 6.5, 'S');
+
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(51, 65, 85);
+  doc.text('DATA', 16, thY + 4.5);
+  doc.text('CONFRONTO / COMPETIÇÃO', 36, thY + 4.5);
+  doc.text('MIN', 115, thY + 4.5);
+  doc.text('QUADRANTE', 125, thY + 4.5);
+  doc.text('DESFECHO', 148, thY + 4.5);
+  doc.text('VÍDEO / CORTE', 172, thY + 4.5);
+
+  let rowY = thY + 6.5;
+  taker.kicks.forEach((kick, index) => {
+    if (rowY > 275) return;
+    const isEven = index % 2 === 0;
+    if (isEven) {
+      doc.setFillColor(255, 255, 255);
+    } else {
+      doc.setFillColor(248, 250, 252);
+    }
+    doc.rect(14, rowY, 182, 7, 'F');
+    doc.setDrawColor(226, 232, 240);
+    doc.rect(14, rowY, 182, 7, 'S');
+
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(51, 65, 85);
+    doc.text(kick.dateStr, 16, rowY + 4.8);
+
+    doc.text(kick.match.length > 45 ? kick.match.slice(0, 43) + '...' : kick.match, 36, rowY + 4.8);
+    doc.text(`${kick.minute}'`, 116, rowY + 4.8);
+    doc.text(`Q${kick.quadrant} (${quadrantNames[kick.quadrant - 1]?.slice(0, 11) || 'N/A'})`, 125, rowY + 4.8);
+
+    // Outcome Badge
+    if (kick.outcome === 'Gol') {
+      doc.setTextColor(22, 101, 52);
+      doc.setFont('helvetica', 'bold');
+      doc.text('● GOL', 148, rowY + 4.8);
+    } else if (kick.outcome === 'Defendido') {
+      doc.setTextColor(30, 64, 175);
+      doc.setFont('helvetica', 'bold');
+      doc.text('★ DEFENDIDO', 148, rowY + 4.8);
+    } else {
+      doc.setTextColor(153, 27, 27);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`○ ${kick.outcome.toUpperCase()}`, 148, rowY + 4.8);
+    }
+
+    // Video Link
+    if (kick.videoUrl) {
+      doc.setTextColor(37, 99, 235);
+      doc.setFont('helvetica', 'bold');
+      doc.text('▶ Ver Vídeo', 172, rowY + 4.8);
+      doc.link(170, rowY, 24, 7, { url: kick.videoUrl });
+    } else {
+      doc.setTextColor(148, 163, 184);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Sem vídeo', 172, rowY + 4.8);
+    }
+
+    rowY += 7;
+  });
+
+  // Footer
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text('C.A. Juventus SAF Sub-20 • Departamento de Inteligência Tática e Preparação de Goleiros • Documento Confidencial', 14, 290);
+
+  const cleanName = taker.name.replace(/[^a-zA-Z0-9]/g, '_');
+  doc.save(`Scouting_Penaltis_${cleanName}_Juventus_Sub20.pdf`);
+}
+
 

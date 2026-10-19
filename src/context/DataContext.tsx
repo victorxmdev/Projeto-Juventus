@@ -10,7 +10,10 @@ import {
   MatchConcededGoal,
   ChampionshipType,
   WeeklyMicrocycleSchedule,
-  TrainingUnitPlan
+  TrainingUnitPlan,
+  GoalkeeperVideoCut,
+  OpponentPenaltyTaker,
+  OpponentPenaltyKick
 } from '../types';
 import { 
   INITIAL_PLAYERS, 
@@ -22,7 +25,9 @@ import {
   INITIAL_GK_PERIODIZATION, 
   INITIAL_GOALS_CONCEDED,
   INITIAL_WEEKLY_SCHEDULE,
-  INITIAL_PUT_PLANS
+  INITIAL_PUT_PLANS,
+  INITIAL_GK_VIDEO_CUTS,
+  INITIAL_OPPONENT_PENALTY_TAKERS
 } from '../data/seedData';
 
 interface DataContextType {
@@ -34,6 +39,7 @@ interface DataContextType {
   wellnessRecords: WellnessRecord[];
   gkPeriodization: GoalkeeperPeriodizationDay[];
   goalsConceded: MatchConcededGoal[];
+  gkVideoCuts: GoalkeeperVideoCut[];
   
   // Player Actions
   updatePlayer: (player: Player) => void;
@@ -62,6 +68,9 @@ interface DataContextType {
   addGoalConceded: (goal: MatchConcededGoal) => void;
   deleteGoalConceded: (goalId: string) => void;
   updateGkPeriodization: (dayIndex: number, dayData: GoalkeeperPeriodizationDay) => void;
+  addGkVideoCut: (cut: GoalkeeperVideoCut) => void;
+  deleteGkVideoCut: (cutId: string) => void;
+  updateGkVideoCut: (cut: GoalkeeperVideoCut) => void;
   
   // Weekly Microcycle Schedule & PUT Plans (Photo/PDF Attachments)
   weeklySchedule: WeeklyMicrocycleSchedule;
@@ -70,6 +79,14 @@ interface DataContextType {
   putPlans: TrainingUnitPlan[];
   updatePutPlan: (plan: TrainingUnitPlan) => void;
   addPutPlan: (plan: TrainingUnitPlan) => void;
+  
+  // Opponent Penalty Takers (Scouting Trave 3x3)
+  opponentPenaltyTakers: OpponentPenaltyTaker[];
+  addOpponentPenaltyTaker: (taker: OpponentPenaltyTaker) => void;
+  updateOpponentPenaltyTaker: (taker: OpponentPenaltyTaker) => void;
+  deleteOpponentPenaltyTaker: (takerId: string) => void;
+  addPenaltyKickToTaker: (takerId: string, kick: OpponentPenaltyKick) => void;
+  deletePenaltyKickFromTaker: (takerId: string, kickId: string) => void;
   
   // Helpers
   getPlayerStatsForChampionship: (player: Player, championship: ChampionshipType) => {
@@ -90,7 +107,7 @@ interface DataContextType {
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'juventus_sub20_data_v5';
+const STORAGE_KEY = 'juventus_sub20_data_v6';
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [players, setPlayers] = useState<Player[]>(() => {
@@ -104,7 +121,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length >= 21) {
-          return parsed;
+          return parsed.map((m: Match) => {
+            const init = INITIAL_MATCHES.find(im => im.id === m.id);
+            if (init?.tacticalCameraYoutubeId && !m.tacticalCameraYoutubeId) {
+              return { 
+                ...m, 
+                tacticalCameraYoutubeId: init.tacticalCameraYoutubeId, 
+                tacticalCameraUrl: init.tacticalCameraUrl 
+              };
+            }
+            return m;
+          });
         }
       } catch (e) {
         // fallback
@@ -153,6 +180,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return saved ? JSON.parse(saved) : INITIAL_PUT_PLANS;
   });
 
+  const [gkVideoCuts, setGkVideoCuts] = useState<GoalkeeperVideoCut[]>(() => {
+    const saved = localStorage.getItem(`${STORAGE_KEY}_gk_video_cuts`);
+    return saved ? JSON.parse(saved) : INITIAL_GK_VIDEO_CUTS;
+  });
+
+  const [opponentPenaltyTakers, setOpponentPenaltyTakers] = useState<OpponentPenaltyTaker[]>(() => {
+    const saved = localStorage.getItem(`${STORAGE_KEY}_opponent_penalty_takers`);
+    return saved ? JSON.parse(saved) : INITIAL_OPPONENT_PENALTY_TAKERS;
+  });
+
   // Sync to localStorage
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_players`, JSON.stringify(players));
@@ -193,6 +230,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_put_plans`, JSON.stringify(putPlans));
   }, [putPlans]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_gk_video_cuts`, JSON.stringify(gkVideoCuts));
+  }, [gkVideoCuts]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_opponent_penalty_takers`, JSON.stringify(opponentPenaltyTakers));
+  }, [opponentPenaltyTakers]);
 
   // Player Actions
   const updatePlayer = (updated: Player) => {
@@ -362,6 +407,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  const addGkVideoCut = (cut: GoalkeeperVideoCut) => {
+    setGkVideoCuts(prev => [cut, ...prev]);
+  };
+
+  const deleteGkVideoCut = (cutId: string) => {
+    setGkVideoCuts(prev => prev.filter(c => c.id !== cutId));
+  };
+
+  const updateGkVideoCut = (cut: GoalkeeperVideoCut) => {
+    setGkVideoCuts(prev => prev.map(c => c.id === cut.id ? cut : c));
+  };
+
   // Helper to extract player stats for active championship
   const getPlayerStatsForChampionship = (player: Player, championship: ChampionshipType) => {
     const paulista = player.statsByChampionship?.paulista || {
@@ -432,6 +489,43 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setPutPlans(prev => [...prev, plan]);
   };
 
+  // Opponent Penalty Taker Actions
+  const addOpponentPenaltyTaker = (taker: OpponentPenaltyTaker) => {
+    setOpponentPenaltyTakers(prev => [taker, ...prev]);
+  };
+
+  const updateOpponentPenaltyTaker = (updated: OpponentPenaltyTaker) => {
+    setOpponentPenaltyTakers(prev => prev.map(t => t.id === updated.id ? updated : t));
+  };
+
+  const deleteOpponentPenaltyTaker = (takerId: string) => {
+    setOpponentPenaltyTakers(prev => prev.filter(t => t.id !== takerId));
+  };
+
+  const addPenaltyKickToTaker = (takerId: string, kick: OpponentPenaltyKick) => {
+    setOpponentPenaltyTakers(prev => prev.map(t => {
+      if (t.id === takerId) {
+        return {
+          ...t,
+          kicks: [kick, ...t.kicks]
+        };
+      }
+      return t;
+    }));
+  };
+
+  const deletePenaltyKickFromTaker = (takerId: string, kickId: string) => {
+    setOpponentPenaltyTakers(prev => prev.map(t => {
+      if (t.id === takerId) {
+        return {
+          ...t,
+          kicks: t.kicks.filter(k => k.id !== kickId)
+        };
+      }
+      return t;
+    }));
+  };
+
   const resetToInitialData = () => {
     setPlayers(INITIAL_PLAYERS);
     setMatches(INITIAL_MATCHES);
@@ -443,6 +537,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setGoalsConceded(INITIAL_GOALS_CONCEDED);
     setWeeklySchedule(INITIAL_WEEKLY_SCHEDULE);
     setPutPlans(INITIAL_PUT_PLANS);
+    setGkVideoCuts(INITIAL_GK_VIDEO_CUTS);
+    setOpponentPenaltyTakers(INITIAL_OPPONENT_PENALTY_TAKERS);
     localStorage.removeItem(`${STORAGE_KEY}_players`);
     localStorage.removeItem(`${STORAGE_KEY}_matches`);
     localStorage.removeItem(`${STORAGE_KEY}_trainings`);
@@ -453,6 +549,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem(`${STORAGE_KEY}_goals_conceded`);
     localStorage.removeItem(`${STORAGE_KEY}_weekly_schedule`);
     localStorage.removeItem(`${STORAGE_KEY}_put_plans`);
+    localStorage.removeItem(`${STORAGE_KEY}_gk_video_cuts`);
+    localStorage.removeItem(`${STORAGE_KEY}_opponent_penalty_takers`);
   };
 
   return (
@@ -465,12 +563,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       wellnessRecords,
       gkPeriodization,
       goalsConceded,
+      gkVideoCuts,
+      opponentPenaltyTakers,
       weeklySchedule,
       updateWeeklySchedule,
       attachScheduleFile,
       putPlans,
       updatePutPlan,
       addPutPlan,
+      addOpponentPenaltyTaker,
+      updateOpponentPenaltyTaker,
+      deleteOpponentPenaltyTaker,
+      addPenaltyKickToTaker,
+      deletePenaltyKickFromTaker,
       updatePlayer,
       addPlayer,
       deletePlayer,
@@ -487,6 +592,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       addGoalConceded,
       deleteGoalConceded,
       updateGkPeriodization,
+      addGkVideoCut,
+      deleteGkVideoCut,
+      updateGkVideoCut,
       getPlayerStatsForChampionship,
       resetToInitialData
     }}>

@@ -249,6 +249,8 @@ export interface Match {
   goalsConcededDetails: MatchConcededGoal[];
   pdfOfficialScoresheetUrl?: string;
   fpfExternalScoresheetUrl?: string;
+  tacticalCameraYoutubeId?: string;
+  tacticalCameraUrl?: string;
   lineup: MatchPlayerEntry[];
   summaryObservations?: string;
 }
@@ -295,5 +297,72 @@ export interface GoalkeeperPeriodizationDay {
   minutes: number;
   intensity: 'Baixa' | 'Média' | 'Alta';
   observations: string;
+}
+
+export interface GoalkeeperVideoCut {
+  id: string;
+  youtubeId: string;
+  title: string;
+  dateStr: string;
+  opponent: string;
+  goalkeeperId: string; // 'p1' | 'p2' | 'p3' | 'both'
+  goalkeeperName: string;
+  category: '1x1' | 'Bolas Aéreas' | 'Jogo com os Pés' | 'Reflexo & Queda' | 'Chutes Média Distância' | 'Ações Gerais';
+  notes: string;
+  coachFeedback?: string;
+  matchType?: string;
+  timestamps?: Array<{ time: string; label: string; seconds?: number }>;
+}
+
+export interface PreparatoryMatchVideo {
+  id: string;
+  youtubeId: string;
+  title: string;
+  opponent: string;
+  dateStr: string;
+  location: 'Casa' | 'Fora';
+  tag: 'Jogo-Treino' | 'Copa Integração' | 'Coletivo Interno';
+  notes?: string;
+  order?: number;
+  stadium?: string;
+}
+
+export interface OpponentPenaltyKick {
+  id: string;
+  takerId: string;
+  dateStr: string;
+  match: string;
+  competition: string;
+  minute: number;
+  quadrant: number; // 1 to 9 (Trave 3x3) or 0 (Fora/Trave)
+  outcome: 'Gol' | 'Defendido' | 'Fora' | 'Trave';
+  videoYoutubeId?: string;
+  videoTimestamp?: number;
+  videoUrl?: string;
+  goalkeeperFacing?: string;
+  runUpStyle?: string;
+  shotCharacteristic?: string;
+  notes?: string;
+}
+
+export interface OpponentPenaltyTaker {
+  id: string;
+  name: string;
+  nickname?: string;
+  shirtNumber: number;
+  team: string;
+  position: string;
+  dominantFoot: 'Destro' | 'Canhoto';
+  birthYear?: number;
+  heightCm?: number;
+  photoUrl: string;
+  oGolUrl: string;
+  notes?: string;
+  kicks: OpponentPenaltyKick[];
+  technicalAnalysis: {
+    runUpDescription: string;
+    bodyLanguage: string;
+    goalkeeperRecommendation: string;
+  };
 }
 

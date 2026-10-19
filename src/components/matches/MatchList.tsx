@@ -5,6 +5,8 @@ import { useChampionship } from '../../context/ChampionshipContext';
 import { MatchSheetModal } from './MatchSheetModal';
 import { PdfViewerModal } from '../common/PdfViewerModal';
 import { RegulationsModal } from '../regulations/RegulationsModal';
+import { PreparatoryVideosModal } from './PreparatoryVideosModal';
+import { Modal } from '../common/Modal';
 import { 
   Trophy, 
   Plus, 
@@ -20,7 +22,11 @@ import {
   TrendingUp,
   Award,
   Download,
-  BookOpen
+  BookOpen,
+  Video,
+  Youtube,
+  Play,
+  Film
 } from 'lucide-react';
 
 export const MatchList: React.FC = () => {
@@ -32,6 +38,9 @@ export const MatchList: React.FC = () => {
   const [isPdfViewerOpen, setIsPdfViewerOpen] = useState(false);
   const [currentPdfUrl, setCurrentPdfUrl] = useState<string>('');
   const [isRegulationsOpen, setIsRegulationsOpen] = useState(false);
+  const [isPrepModalOpen, setIsPrepModalOpen] = useState(false);
+  const [selectedTacticalMatch, setSelectedTacticalMatch] = useState<Match | null>(null);
+  const [isTacticalVideoModalOpen, setIsTacticalVideoModalOpen] = useState(false);
 
   // Filter matches according to global championship
   const filteredMatches = matches.filter(m => {
@@ -80,6 +89,66 @@ export const MatchList: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {championship === 'copinha' ? (
+            <a
+              href="https://www.youtube.com/playlist?list=PLJ_u_2G_zNBM"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-colors shadow-sm"
+              title="Abrir Playlist Oficial da Copinha Sil 2026 no YouTube (4 Jogos)"
+            >
+              <Youtube size={15} />
+              <span>Câmera Tática Copinha (4 Jogos)</span>
+              <ExternalLink size={12} />
+            </a>
+          ) : championship === 'paulista' ? (
+            <a
+              href="https://www.youtube.com/playlist?list=PLsNXtgaQkGjnDR7kYQH2iK5rQln1a0WfI"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-colors shadow-sm"
+              title="Abrir Playlist Oficial do Paulista Sub-20 no YouTube (15 Jogos)"
+            >
+              <Youtube size={15} />
+              <span>Câmera Tática Paulista (15 Jogos)</span>
+              <ExternalLink size={12} />
+            </a>
+          ) : (
+            <>
+              <a
+                href="https://www.youtube.com/playlist?list=PLsNXtgaQkGjnDR7kYQH2iK5rQln1a0WfI"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-colors shadow-sm"
+                title="Abrir Playlist Oficial do Paulista Sub-20 no YouTube (15 Jogos)"
+              >
+                <Youtube size={14} />
+                <span>Paulista (15J)</span>
+                <ExternalLink size={11} />
+              </a>
+              <a
+                href="https://www.youtube.com/playlist?list=PLJ_u_2G_zNBM"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-colors shadow-sm"
+                title="Abrir Playlist Oficial da Copinha Sil 2026 no YouTube (4 Jogos)"
+              >
+                <Youtube size={14} />
+                <span>Copinha (4J)</span>
+                <ExternalLink size={11} />
+              </a>
+            </>
+          )}
+
+          <button
+            onClick={() => setIsPrepModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs transition-colors shadow-sm"
+            title="Abrir Acervo de Jogos Preparatórios & Amistosos Sub-20 (19 Vídeos - Apenas Visual)"
+          >
+            <Film size={15} className="text-amber-400" />
+            <span>Jogos Preparatórios (19 Vídeos)</span>
+          </button>
+
           <button
             onClick={() => setIsRegulationsOpen(true)}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-xs transition-colors shadow-sm"
@@ -206,6 +275,21 @@ export const MatchList: React.FC = () => {
                 {/* Right: Actions */}
                 <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end border-t md:border-t-0 pt-3 md:pt-0 border-slate-100">
                   
+                  {/* Tactical Camera Video Button */}
+                  {match.tacticalCameraYoutubeId && (
+                    <button
+                      onClick={() => {
+                        setSelectedTacticalMatch(match);
+                        setIsTacticalVideoModalOpen(true);
+                      }}
+                      className="px-3 py-2 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+                      title="Assistir gravação em câmera tática deste jogo no Paulista"
+                    >
+                      <Video size={14} className="text-red-600" />
+                      <span>Câmera Tática</span>
+                    </button>
+                  )}
+
                   {/* Open Official Match Sheet Launch Modal */}
                   <button
                     onClick={() => {
@@ -303,6 +387,62 @@ export const MatchList: React.FC = () => {
       <RegulationsModal
         isOpen={isRegulationsOpen}
         onClose={() => setIsRegulationsOpen(false)}
+      />
+
+      {/* Tactical Camera Match Video Modal */}
+      {selectedTacticalMatch && (
+        <Modal
+          isOpen={isTacticalVideoModalOpen}
+          onClose={() => {
+            setIsTacticalVideoModalOpen(false);
+            setSelectedTacticalMatch(null);
+          }}
+          title={`Câmera Tática: C.A. Juventus x ${selectedTacticalMatch.opponent}`}
+          subtitle={`${selectedTacticalMatch.competition === 'copinha' ? 'Copa São Paulo de Futebol Júnior (Copinha 2026)' : 'Campeonato Paulista Sub-20 2026'} • Jogo #${selectedTacticalMatch.matchNumber} • ${selectedTacticalMatch.date} • ${selectedTacticalMatch.stadium}`}
+          maxWidth="2xl"
+        >
+          <div className="space-y-4">
+            <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-black shadow-md border border-slate-800">
+              <iframe
+                src={`https://www.youtube.com/embed/${selectedTacticalMatch.tacticalCameraYoutubeId}?autoplay=1&rel=0`}
+                title={`Câmera Tática Juventus x ${selectedTacticalMatch.opponent}`}
+                className="w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            </div>
+
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+              <div>
+                <span className="font-bold text-slate-800 block">
+                  Placar: Juventus {selectedTacticalMatch.scoreJuventus} x {selectedTacticalMatch.scoreOpponent} {selectedTacticalMatch.opponent} ({selectedTacticalMatch.result})
+                </span>
+                <p className="text-slate-500 mt-0.5">
+                  {selectedTacticalMatch.summaryObservations || 'Gravação oficial em plano aberto para análise tática e individual da comissão técnica.'}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <a
+                  href={`https://www.youtube.com/watch?v=${selectedTacticalMatch.tacticalCameraYoutubeId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3.5 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+                >
+                  <Youtube size={14} />
+                  <span>Assistir no YouTube</span>
+                  <ExternalLink size={12} />
+                </a>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Preparatory Videos Modal */}
+      <PreparatoryVideosModal
+        isOpen={isPrepModalOpen}
+        onClose={() => setIsPrepModalOpen(false)}
       />
 
     </div>

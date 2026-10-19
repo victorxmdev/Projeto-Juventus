@@ -1,5 +1,10 @@
 import React, { useState } from 'react';
-import { MatchConcededGoal, GoalkeeperPeriodizationDay, Player } from '../../types';
+import { 
+  MatchConcededGoal, 
+  GoalkeeperPeriodizationDay, 
+  Player, 
+  GoalkeeperVideoCut 
+} from '../../types';
 import { useData } from '../../context/DataContext';
 import { generateGoalkeeperWeeklyPdf } from '../../services/pdfService';
 import { Modal } from '../common/Modal';
@@ -15,21 +20,45 @@ import {
   Filter,
   Check,
   Download,
-  Info
+  Info,
+  Youtube,
+  ExternalLink,
+  Play,
+  Search,
+  Clock,
+  Tag,
+  Film,
+  Sparkles,
+  Video,
+  ChevronRight,
+  Maximize2,
+  Crosshair
 } from 'lucide-react';
+import { OpponentPenaltyScouting } from './OpponentPenaltyScouting';
 
-type GkSubTab = 'overview' | 'goals_conceded' | 'periodization' | 'specific_sessions' | 'library';
+type GkSubTab = 'video_cuts' | 'goals_conceded' | 'opponent_penalties' | 'periodization' | 'overview';
 
 export const GoalkeeperModule: React.FC = () => {
-  const { players, goalsConceded, gkPeriodization, addGoalConceded, deleteGoalConceded, updateGkPeriodization } = useData();
+  const { 
+    players, 
+    goalsConceded, 
+    gkPeriodization, 
+    gkVideoCuts,
+    opponentPenaltyTakers,
+    addGoalConceded, 
+    deleteGoalConceded, 
+    updateGkPeriodization,
+    addGkVideoCut,
+    deleteGkVideoCut
+  } = useData();
 
-  const [activeSubTab, setActiveSubTab] = useState<GkSubTab>('goals_conceded');
+  const [activeSubTab, setActiveSubTab] = useState<GkSubTab>('video_cuts');
   const [selectedGkFilter, setSelectedGkFilter] = useState<string>('all');
 
   // Goalkeepers in squad
   const goalkeepers = players.filter(p => p.position === 'Goleiro');
 
-  // Goal registration modal
+  // Goal registration modal (Trave 3x3)
   const [isRegisterGoalModalOpen, setIsRegisterGoalModalOpen] = useState(false);
   const [selectedQuadrant, setSelectedQuadrant] = useState<number>(3);
   const [newGoalForm, setNewGoalForm] = useState({
@@ -52,6 +81,113 @@ export const GoalkeeperModule: React.FC = () => {
     const qNum = i + 1;
     return filteredGoals.filter(g => g.quadrant === qNum).length;
   });
+
+  // Goalkeeper Video Cuts State
+  const [selectedCutId, setSelectedCutId] = useState<string>(gkVideoCuts[0]?.id || 'cut_1');
+  const [isFullPlaylistMode, setIsFullPlaylistMode] = useState<boolean>(false);
+  const [videoGkFilter, setVideoGkFilter] = useState<'all' | 'p1' | 'p2' | 'both'>('all');
+  const [videoCategoryFilter, setVideoCategoryFilter] = useState<string>('all');
+  const [videoSearchQuery, setVideoSearchQuery] = useState<string>('');
+  const [isAddCutModalOpen, setIsAddCutModalOpen] = useState<boolean>(false);
+
+  const [newCutForm, setNewCutForm] = useState({
+    youtubeUrl: '',
+    title: '',
+    dateStr: '17/10/2026',
+    opponent: '',
+    goalkeeperId: 'p1',
+    category: 'Reflexo & Queda' as GoalkeeperVideoCut['category'],
+    notes: '',
+    coachFeedback: '',
+    timestampsStr: ''
+  });
+
+  const selectedCut = gkVideoCuts.find(c => c.id === selectedCutId) || gkVideoCuts[0];
+
+  const filteredVideoCuts = gkVideoCuts.filter(c => {
+    if (videoGkFilter !== 'all' && c.goalkeeperId !== videoGkFilter && c.goalkeeperId !== 'both') {
+      return false;
+    }
+    if (videoCategoryFilter !== 'all' && c.category !== videoCategoryFilter) {
+      return false;
+    }
+    if (videoSearchQuery.trim()) {
+      const q = videoSearchQuery.toLowerCase();
+      const matchOpponent = c.opponent.toLowerCase().includes(q);
+      const matchTitle = c.title.toLowerCase().includes(q);
+      const matchNotes = c.notes.toLowerCase().includes(q);
+      const matchGk = c.goalkeeperName.toLowerCase().includes(q);
+      if (!matchOpponent && !matchTitle && !matchNotes && !matchGk) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  const getYouTubeId = (urlOrId: string) => {
+    if (!urlOrId) return '';
+    const trimmed = urlOrId.trim();
+    if (trimmed.length === 11 && !trimmed.includes('/') && !trimmed.includes('.')) {
+      return trimmed;
+    }
+    const match = trimmed.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+    return match ? match[1] : trimmed;
+  };
+
+  const handleSaveNewCut = (e: React.FormEvent) => {
+    e.preventDefault();
+    const ytId = getYouTubeId(newCutForm.youtubeUrl);
+    if (!ytId) {
+      alert('Por favor insira um link ou ID válido do YouTube');
+      return;
+    }
+
+    const selectedGk = goalkeepers.find(g => g.id === newCutForm.goalkeeperId);
+    const gkName = newCutForm.goalkeeperId === 'both' 
+      ? 'Arthur Rodrigues & Eduardo Salvador' 
+      : (selectedGk?.name || 'Goleiro');
+
+    const parsedTimestamps = newCutForm.timestampsStr
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean)
+      .map(line => {
+        const parts = line.split(' ');
+        const time = parts[0];
+        const label = parts.slice(1).join(' ') || 'Ação de jogo';
+        return { time, label };
+      });
+
+    const newCut: GoalkeeperVideoCut = {
+      id: `cut_${Date.now()}`,
+      youtubeId: ytId,
+      title: newCutForm.title || `Ações ${gkName.split(' ')[0]} x ${newCutForm.opponent || 'Adversário'}`,
+      dateStr: newCutForm.dateStr,
+      opponent: newCutForm.opponent || 'Adversário',
+      goalkeeperId: newCutForm.goalkeeperId,
+      goalkeeperName: gkName,
+      category: newCutForm.category,
+      notes: newCutForm.notes,
+      coachFeedback: newCutForm.coachFeedback,
+      matchType: 'Paulista Sub-20',
+      timestamps: parsedTimestamps.length > 0 ? parsedTimestamps : undefined
+    };
+
+    addGkVideoCut(newCut);
+    setSelectedCutId(newCut.id);
+    setIsAddCutModalOpen(false);
+    setNewCutForm({
+      youtubeUrl: '',
+      title: '',
+      dateStr: '17/10/2026',
+      opponent: '',
+      goalkeeperId: 'p1',
+      category: 'Reflexo & Queda',
+      notes: '',
+      coachFeedback: '',
+      timestampsStr: ''
+    });
+  };
 
   const availableGkContents = [
     'Posição base e deslocamentos',
@@ -116,7 +252,7 @@ export const GoalkeeperModule: React.FC = () => {
             </h2>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Mapeamento analítico de gols sofridos na trave 3x3 e periodização semanal específica
+            Análise em vídeo dos cortes oficiais, mapeamento analítico de gols na trave 3x3 e periodização semanal
           </p>
         </div>
 
@@ -153,9 +289,35 @@ export const GoalkeeperModule: React.FC = () => {
       <div className="bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between gap-2 overflow-x-auto text-xs font-semibold">
         <div className="flex items-center gap-1">
           {[
-            { id: 'goals_conceded' as GkSubTab, label: 'Gols Sofridos (Trave 3x3)', icon: Target },
-            { id: 'periodization' as GkSubTab, label: 'Periodização Semanal (Seg-Sáb)', icon: Calendar },
-            { id: 'overview' as GkSubTab, label: 'Visão Geral do Setor', icon: ShieldAlert },
+            { 
+              id: 'video_cuts' as GkSubTab, 
+              label: 'Cortes & Análise em Vídeo', 
+              icon: Youtube,
+              badge: `${gkVideoCuts.length} cortes`,
+              badgeClass: 'bg-red-600 text-white'
+            },
+            { 
+              id: 'goals_conceded' as GkSubTab, 
+              label: 'Gols Sofridos (Trave 3x3)', 
+              icon: Target 
+            },
+            { 
+              id: 'opponent_penalties' as GkSubTab, 
+              label: 'Scouting Pênaltis Adversários (Trave 3x3)', 
+              icon: Crosshair,
+              badge: `${opponentPenaltyTakers.length} batedores`,
+              badgeClass: 'bg-[#631426] text-white'
+            },
+            { 
+              id: 'periodization' as GkSubTab, 
+              label: 'Periodização Semanal (Seg-Sáb)', 
+              icon: Calendar 
+            },
+            { 
+              id: 'overview' as GkSubTab, 
+              label: 'Visão Geral do Setor', 
+              icon: ShieldAlert 
+            },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeSubTab === tab.id;
@@ -163,14 +325,21 @@ export const GoalkeeperModule: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveSubTab(tab.id)}
-                className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                className={`px-3.5 py-2 rounded-lg whitespace-nowrap transition-all flex items-center gap-2 ${
                   isActive
                     ? 'bg-[#631426] text-white font-bold shadow-sm'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
-                <Icon size={14} />
+                <Icon size={15} className={tab.id === 'video_cuts' && !isActive ? 'text-red-600' : ''} />
                 <span>{tab.label}</span>
+                {tab.badge && (
+                  <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                    isActive ? 'bg-white text-[#631426]' : tab.badgeClass
+                  }`}>
+                    {tab.badge}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -185,7 +354,422 @@ export const GoalkeeperModule: React.FC = () => {
             <span>PDF da Semana</span>
           </button>
         )}
+
+        {activeSubTab === 'video_cuts' && (
+          <div className="flex items-center gap-2">
+            <a
+              href="https://www.youtube.com/playlist?list=PLZPfVjnqwWAE"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-colors"
+              title="Abrir playlist oficial no YouTube"
+            >
+              <Youtube size={14} />
+              <span className="hidden sm:inline">Playlist no YouTube</span>
+              <ExternalLink size={11} />
+            </a>
+
+            <button
+              onClick={() => setIsAddCutModalOpen(true)}
+              className="px-3 py-1.5 rounded-lg bg-[#631426] hover:bg-[#4E0F1E] text-white font-bold text-xs flex items-center gap-1 shadow-sm transition-colors"
+            >
+              <Plus size={13} />
+              <span>Novo Corte</span>
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Sub-tab 0: Cortes & Vídeos (YouTube Playlist Integration) */}
+      {activeSubTab === 'video_cuts' && (
+        <div className="space-y-4">
+          
+          {/* Main Video Analysis Player Workspace */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            
+            {/* Embedded Responsive Player (Col 8) */}
+            <div className="lg:col-span-8 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+              
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded bg-red-100 text-red-800 text-[10px] font-black uppercase tracking-wider">
+                      {isFullPlaylistMode ? 'PLAYLIST GERAL' : 'VÍDEO FOCADO'}
+                    </span>
+                    <h3 className="text-sm font-black text-slate-900 truncate">
+                      {isFullPlaylistMode ? 'Sub 20 (Cortes Goleiros) • Playlist Completa' : selectedCut?.title}
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {isFullPlaylistMode 
+                      ? 'Navegue pelos 17 vídeos oficiais da playlist pelo menu interno do player' 
+                      : `${selectedCut?.opponent} • ${selectedCut?.dateStr} • ${selectedCut?.matchType || 'Paulista Sub-20'}`}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setIsFullPlaylistMode(!isFullPlaylistMode)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all border ${
+                      isFullPlaylistMode 
+                        ? 'bg-red-600 text-white border-red-600 shadow-sm' 
+                        : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200'
+                    }`}
+                  >
+                    {isFullPlaylistMode ? 'Modo Corte Individual' : 'Ver Playlist Completa'}
+                  </button>
+
+                  {selectedCut && !isFullPlaylistMode && (
+                    <a
+                      href={`https://www.youtube.com/watch?v=${selectedCut.youtubeId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 hover:text-red-600 transition-colors"
+                      title="Assistir diretamente no YouTube"
+                    >
+                      <ExternalLink size={14} />
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              {/* 16:9 Responsive Video Container */}
+              <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-black shadow-inner border border-slate-800">
+                {isFullPlaylistMode ? (
+                  <iframe
+                    src="https://www.youtube.com/embed/videoseries?list=PLZPfVjnqwWAE&rel=0"
+                    title="Playlist de cortes dos goleiros Sub-20"
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                ) : selectedCut ? (
+                  <iframe
+                    key={selectedCut.youtubeId}
+                    src={`https://www.youtube.com/embed/${selectedCut.youtubeId}?rel=0`}
+                    title={selectedCut.title}
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-slate-400 text-xs">
+                    Nenhum corte selecionado
+                  </div>
+                )}
+              </div>
+
+              {/* Video Info Strip */}
+              {selectedCut && !isFullPlaylistMode && (
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-xs">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="px-2.5 py-1 rounded-md bg-[#631426] text-white font-bold text-[11px]">
+                      {selectedCut.goalkeeperName}
+                    </span>
+                    <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-800 font-bold border border-slate-200 text-[11px]">
+                      Categoria: {selectedCut.category}
+                    </span>
+                    <span className="text-slate-500 text-[11px]">
+                      Adversário: <strong className="text-slate-800">{selectedCut.opponent}</strong> ({selectedCut.dateStr})
+                    </span>
+                  </div>
+
+                  <a
+                    href={`https://www.youtube.com/watch?v=${selectedCut.youtubeId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-red-600 hover:text-red-700 font-bold text-xs flex items-center gap-1"
+                  >
+                    <span>Abrir no YouTube</span>
+                    <ExternalLink size={12} />
+                  </a>
+                </div>
+              )}
+
+            </div>
+
+            {/* Coach Analysis & Timestamps Sidebar (Col 4) */}
+            <div className="lg:col-span-4 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3 flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <Film size={15} className="text-[#631426]" />
+                    <span>Análise do Preparador</span>
+                  </h4>
+                  <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                    Sub-20 Juventus
+                  </span>
+                </div>
+
+                {selectedCut ? (
+                  <div className="space-y-3 text-xs">
+                    {/* Technical Notes */}
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1">
+                      <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider block">
+                        Ações & Contexto do Jogo
+                      </span>
+                      <p className="text-slate-800 leading-relaxed">
+                        {selectedCut.notes}
+                      </p>
+                    </div>
+
+                    {/* Coach Technical Feedback */}
+                    {selectedCut.coachFeedback && (
+                      <div className="bg-amber-50/60 p-3 rounded-xl border border-amber-200/80 space-y-1">
+                        <span className="text-[10px] font-black uppercase text-amber-900 tracking-wider flex items-center gap-1 block">
+                          <Sparkles size={11} className="text-amber-600" />
+                          Feedback da Preparação de Goleiros
+                        </span>
+                        <p className="text-amber-950 font-medium leading-relaxed">
+                          "{selectedCut.coachFeedback}"
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Clickable Timestamps */}
+                    {selectedCut.timestamps && selectedCut.timestamps.length > 0 && (
+                      <div className="space-y-1.5 pt-1">
+                        <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider block">
+                          Momentos-Chave (Timestamps)
+                        </span>
+                        <div className="space-y-1">
+                          {selectedCut.timestamps.map((ts, idx) => (
+                            <a
+                              key={idx}
+                              href={`https://www.youtube.com/watch?v=${selectedCut.youtubeId}&t=${ts.time.replace(':', 'm')}s`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 flex items-center justify-between text-[11px] transition-colors group"
+                            >
+                              <span className="font-mono font-bold text-[#631426] flex items-center gap-1.5">
+                                <Clock size={12} className="text-slate-400 group-hover:text-[#631426]" />
+                                {ts.time}
+                              </span>
+                              <span className="text-slate-700 font-medium truncate ml-2 text-right">
+                                {ts.label}
+                              </span>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 italic text-center py-6">
+                    Selecione um corte de goleiro para visualizar as observações técnicas.
+                  </p>
+                )}
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                <span>Total de cortes catalogados:</span>
+                <strong className="text-slate-900">{gkVideoCuts.length} vídeos</strong>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Filter Toolbar (Goalkeepers, Categories, Search) */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+              
+              {/* Goalkeeper Filter */}
+              <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                <span className="text-slate-500 font-bold px-1">Atleta:</span>
+                {[
+                  { id: 'all', label: `Todos (${gkVideoCuts.length})` },
+                  { id: 'p1', label: `Eduardo Salvador (#1)` },
+                  { id: 'p2', label: `Arthur Rodrigues (#2)` },
+                  { id: 'both', label: `Ações Coletivas` },
+                ].map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => setVideoGkFilter(item.id as any)}
+                    className={`px-3 py-1.5 rounded-xl font-bold transition-all text-xs ${
+                      videoGkFilter === item.id
+                        ? 'bg-[#631426] text-white shadow-sm'
+                        : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Search Box */}
+              <div className="relative min-w-[240px]">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar por adversário, data, corte..."
+                  value={videoSearchQuery}
+                  onChange={e => setVideoSearchQuery(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-900 focus:bg-white focus:border-[#631426] focus:outline-none transition-colors"
+                />
+              </div>
+            </div>
+
+            {/* Category Filter Pills */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100 text-xs">
+              <span className="text-slate-500 font-bold px-1">Fundamento:</span>
+              {[
+                'all',
+                '1x1',
+                'Bolas Aéreas',
+                'Jogo com os Pés',
+                'Reflexo & Queda',
+                'Chutes Média Distância',
+                'Ações Gerais'
+              ].map(cat => {
+                const isSelected = videoCategoryFilter === cat;
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => setVideoCategoryFilter(cat)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
+                      isSelected
+                        ? 'bg-slate-900 text-white shadow-sm'
+                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
+                    }`}
+                  >
+                    {cat === 'all' ? 'Todas as Ações' : cat}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Video Cuts Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filteredVideoCuts.length === 0 ? (
+              <div className="col-span-full bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs italic">
+                Nenhum corte encontrado para os filtros selecionados.
+              </div>
+            ) : (
+              filteredVideoCuts.map((cut) => {
+                const isCurrentPlaying = selectedCutId === cut.id && !isFullPlaylistMode;
+
+                return (
+                  <div
+                    key={cut.id}
+                    className={`bg-white rounded-2xl border overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between group ${
+                      isCurrentPlaying 
+                        ? 'ring-2 ring-[#631426] border-[#631426]' 
+                        : 'border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    {/* Thumbnail with Play Overlay */}
+                    <div 
+                      onClick={() => {
+                        setSelectedCutId(cut.id);
+                        setIsFullPlaylistMode(false);
+                        window.scrollTo({ top: 120, behavior: 'smooth' });
+                      }}
+                      className="relative aspect-video w-full bg-slate-900 cursor-pointer overflow-hidden group/thumb"
+                    >
+                      <img
+                        src={`https://i.ytimg.com/vi/${cut.youtubeId}/hqdefault.jpg`}
+                        alt={cut.title}
+                        className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform duration-300"
+                        loading="lazy"
+                      />
+                      
+                      {/* Dark gradient overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+                      {/* Play Button Icon */}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className={`w-11 h-11 rounded-full flex items-center justify-center shadow-lg transition-transform group-hover/thumb:scale-110 ${
+                          isCurrentPlaying 
+                            ? 'bg-[#631426] text-white ring-4 ring-white/50' 
+                            : 'bg-white/90 text-[#631426] hover:bg-white'
+                        }`}>
+                          <Play size={18} className="ml-0.5" fill="currentColor" />
+                        </div>
+                      </div>
+
+                      {/* Category Badge top-left */}
+                      <div className="absolute top-2 left-2">
+                        <span className="px-2 py-0.5 rounded bg-black/75 backdrop-blur-sm text-white text-[10px] font-bold">
+                          {cut.category}
+                        </span>
+                      </div>
+
+                      {/* Goalkeeper Pill top-right */}
+                      <div className="absolute top-2 right-2">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold shadow-sm ${
+                          cut.goalkeeperId === 'p2' 
+                            ? 'bg-slate-900 text-white' 
+                            : 'bg-[#631426] text-white'
+                        }`}>
+                          {cut.goalkeeperName.split(' ')[0]}
+                        </span>
+                      </div>
+
+                      {/* Opponent & Date bar bottom */}
+                      <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-white text-[11px] font-bold">
+                        <span className="truncate pr-1">vs {cut.opponent}</span>
+                        <span className="text-[10px] font-mono text-slate-300 flex-shrink-0">{cut.dateStr}</span>
+                      </div>
+                    </div>
+
+                    {/* Card Content */}
+                    <div className="p-3.5 space-y-2 flex-1 flex flex-col justify-between">
+                      <div className="space-y-1">
+                        <h4 className="text-xs font-bold text-slate-900 line-clamp-2 leading-tight">
+                          {cut.title}
+                        </h4>
+                        <p className="text-[11px] text-slate-500 line-clamp-2 leading-snug">
+                          {cut.notes}
+                        </p>
+                      </div>
+
+                      {/* Card Action Buttons */}
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-1 text-[11px]">
+                        <button
+                          onClick={() => {
+                            setSelectedCutId(cut.id);
+                            setIsFullPlaylistMode(false);
+                            window.scrollTo({ top: 120, behavior: 'smooth' });
+                          }}
+                          className={`font-bold transition-colors ${
+                            isCurrentPlaying ? 'text-[#631426]' : 'text-slate-700 hover:text-[#631426]'
+                          }`}
+                        >
+                          {isCurrentPlaying ? '● Em reprodução' : '▶ Assistir'}
+                        </button>
+
+                        <div className="flex items-center gap-1.5">
+                          <a
+                            href={`https://www.youtube.com/watch?v=${cut.youtubeId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1 rounded-md text-slate-400 hover:text-red-600 transition-colors"
+                            title="Assistir no YouTube"
+                          >
+                            <Youtube size={15} />
+                          </a>
+
+                          {cut.id.startsWith('cut_') && parseInt(cut.id.replace('cut_', '')) > 20 && (
+                            <button
+                              onClick={() => deleteGkVideoCut(cut.id)}
+                              className="p-1 rounded-md text-slate-400 hover:text-rose-600 transition-colors"
+                              title="Excluir corte customizado"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+        </div>
+      )}
 
       {/* Sub-tab 1: Gols Sofridos (Trave Interativa 3x3) */}
       {activeSubTab === 'goals_conceded' && (
@@ -322,6 +906,11 @@ export const GoalkeeperModule: React.FC = () => {
           </div>
 
         </div>
+      )}
+
+      {/* Sub-tab: Scouting de Pênaltis de Adversários (Trave 3x3) */}
+      {activeSubTab === 'opponent_penalties' && (
+        <OpponentPenaltyScouting />
       )}
 
       {/* Sub-tab 2: Periodização Semanal (Segunda a Sábado) */}
@@ -572,7 +1161,146 @@ export const GoalkeeperModule: React.FC = () => {
         </form>
       </Modal>
 
+      {/* Modal: Adicionar Novo Corte de Vídeo */}
+      <Modal
+        isOpen={isAddCutModalOpen}
+        onClose={() => setIsAddCutModalOpen(false)}
+        title="Cadastrar Novo Corte de Goleiro"
+        subtitle="Adicione um link do YouTube, anotações e momentos-chave"
+        maxWidth="md"
+      >
+        <form onSubmit={handleSaveNewCut} className="space-y-4 text-xs">
+          <div>
+            <label className="block text-slate-700 font-medium mb-1">Link ou ID do YouTube *</label>
+            <input
+              type="text"
+              required
+              placeholder="ex: https://www.youtube.com/watch?v=wj9XhDH1g-4 ou wj9XhDH1g-4"
+              value={newCutForm.youtubeUrl}
+              onChange={e => setNewCutForm({ ...newCutForm, youtubeUrl: e.target.value })}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-slate-900 focus:bg-white focus:border-[#631426] focus:outline-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-slate-700 font-medium mb-1">Goleiro</label>
+              <select
+                value={newCutForm.goalkeeperId}
+                onChange={e => setNewCutForm({ ...newCutForm, goalkeeperId: e.target.value })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-slate-900 focus:bg-white focus:border-[#631426] focus:outline-none"
+              >
+                <option value="p1">Eduardo Salvador (#1)</option>
+                <option value="p2">Arthur Rodrigues (#2)</option>
+                <option value="both">Ambos os Goleiros</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-slate-700 font-medium mb-1">Fundamento Técnico</label>
+              <select
+                value={newCutForm.category}
+                onChange={e => setNewCutForm({ ...newCutForm, category: e.target.value as any })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-slate-900 focus:bg-white focus:border-[#631426] focus:outline-none"
+              >
+                <option value="1x1">1x1 e Cobertura</option>
+                <option value="Bolas Aéreas">Bolas Aéreas & Cruzamentos</option>
+                <option value="Jogo com os Pés">Jogo com os Pés & Reposição</option>
+                <option value="Reflexo & Queda">Reflexo & Queda</option>
+                <option value="Chutes Média Distância">Chutes Média Distância</option>
+                <option value="Ações Gerais">Ações Gerais</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-slate-700 font-medium mb-1">Adversário</label>
+              <input
+                type="text"
+                placeholder="ex: EC Santo André, Santos FC"
+                value={newCutForm.opponent}
+                onChange={e => setNewCutForm({ ...newCutForm, opponent: e.target.value })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-slate-900 focus:bg-white focus:border-[#631426] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-slate-700 font-medium mb-1">Data da Partida</label>
+              <input
+                type="text"
+                placeholder="DD/MM/AAAA"
+                value={newCutForm.dateStr}
+                onChange={e => setNewCutForm({ ...newCutForm, dateStr: e.target.value })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-slate-900 focus:bg-white focus:border-[#631426] focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-slate-700 font-medium mb-1">Título do Corte (Opcional)</label>
+            <input
+              type="text"
+              placeholder="ex: Ações Arthur x EC Santo André"
+              value={newCutForm.title}
+              onChange={e => setNewCutForm({ ...newCutForm, title: e.target.value })}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-slate-900 focus:bg-white focus:border-[#631426] focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-slate-700 font-medium mb-1">Observações Técnicas das Ações</label>
+            <textarea
+              rows={2}
+              placeholder="Descreva as principais defesas, tomadas de decisão ou pontos avaliados..."
+              value={newCutForm.notes}
+              onChange={e => setNewCutForm({ ...newCutForm, notes: e.target.value })}
+              className="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-900 resize-none focus:border-[#631426] focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-slate-700 font-medium mb-1">Feedback do Preparador de Goleiros</label>
+            <textarea
+              rows={2}
+              placeholder="Orientações e elogios para a sessão de vídeo com o atleta..."
+              value={newCutForm.coachFeedback}
+              onChange={e => setNewCutForm({ ...newCutForm, coachFeedback: e.target.value })}
+              className="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-900 resize-none focus:border-[#631426] focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-slate-700 font-medium mb-1">
+              Timestamps (1 por linha: <code className="text-[#631426]">MM:SS Descrição</code>)
+            </label>
+            <textarea
+              rows={3}
+              placeholder="00:15 Saída de gol no 1º pau&#10;01:20 Defesa reflexo no ângulo"
+              value={newCutForm.timestampsStr}
+              onChange={e => setNewCutForm({ ...newCutForm, timestampsStr: e.target.value })}
+              className="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-900 font-mono text-xs resize-none focus:border-[#631426] focus:outline-none"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
+            <button
+              type="button"
+              onClick={() => setIsAddCutModalOpen(false)}
+              className="px-3.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold shadow-sm transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-1.5 rounded-lg bg-[#631426] text-white font-bold hover:bg-[#4E0F1E] shadow-sm transition-colors"
+            >
+              Salvar Corte de Vídeo
+            </button>
+          </div>
+        </form>
+      </Modal>
+
     </div>
   );
 };
-
