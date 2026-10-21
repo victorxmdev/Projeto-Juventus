@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import { TrainingSession, Player, GoalkeeperPeriodizationDay, OpponentPenaltyTaker } from '../types';
+import { TrainingSession, Player, GoalkeeperPeriodizationDay, OpponentPenaltyTaker, GkTrainingSession } from '../types';
 
 export function generateTrainingSessionPdf(session: TrainingSession, allPlayers: Player[]) {
   const doc = new jsPDF({
@@ -599,5 +599,203 @@ export function generateOpponentPenaltyScoutingPdf(taker: OpponentPenaltyTaker) 
   const cleanName = taker.name.replace(/[^a-zA-Z0-9]/g, '_');
   doc.save(`Scouting_Penaltis_${cleanName}_Juventus_Sub20.pdf`);
 }
+
+export function generateGkTrainingSessionPdf(session: GkTrainingSession, goalkeepers: Player[]) {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  // Top header band - Deep Crimson Juventus (#631426)
+  doc.setFillColor(99, 20, 38);
+  doc.rect(0, 0, 210, 32, 'F');
+
+  // Gold accent line
+  doc.setFillColor(212, 175, 55);
+  doc.rect(0, 32, 210, 2, 'F');
+
+  // Header Title
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('CLUBE ATLÉTICO JUVENTUS SAF - SUB-20', 14, 13);
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(245, 231, 178); // gold light
+  doc.text('GK PLANNER • FICHA OFICIAL DE UNIDADE DE TREINO (UT)', 14, 20);
+
+  doc.setFontSize(8);
+  doc.setTextColor(255, 255, 255);
+  doc.text(`GERADO EM: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`, 14, 27);
+
+  // Session Summary Card (x=14, y=38, w=182, h=32)
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(14, 38, 182, 32, 2, 2, 'F');
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(14, 38, 182, 32, 2, 2, 'S');
+
+  // Session Code Badge
+  doc.setFillColor(99, 20, 38);
+  doc.roundedRect(18, 43, 20, 8, 1.5, 1.5, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text(session.code, 28, 48.5, { align: 'center' });
+
+  // Session Title
+  doc.setTextColor(17, 24, 39);
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text(session.title.toUpperCase(), 42, 49);
+
+  // Metadata Subtitle
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
+  doc.text(`Data: ${session.date}   |   Duração: ${session.durationMinutes} min   |   Categoria: ${session.category}   |   Intensidade: ${session.intensity.toUpperCase()}`, 18, 58);
+
+  // Objectives Distribution Bar
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(99, 20, 38);
+  doc.text('Distribuição de Objetivos:', 18, 65);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(51, 65, 85);
+  doc.text(`Técnico: ${session.objectivesRatio.tecnico}%   •   Físico: ${session.objectivesRatio.fisico}%   •   Tático: ${session.objectivesRatio.tatico}%   •   Comportamental: ${session.objectivesRatio.comportamental}%`, 58, 65);
+
+  let currentY = 75;
+
+  // Involved Goalkeepers Pill Card
+  const involvedGks = goalkeepers.filter(g => session.involvedGkIds.includes(g.id));
+  if (involvedGks.length > 0) {
+    doc.setFillColor(241, 245, 249);
+    doc.roundedRect(14, currentY, 182, 12, 1.5, 1.5, 'F');
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(99, 20, 38);
+    doc.text('GOLEIROS CONVOCADOS:', 18, currentY + 7.5);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(30, 41, 59);
+    const gkNames = involvedGks.map(g => `#${g.number} ${g.name}`).join('  |  ');
+    doc.text(gkNames, 62, currentY + 7.5);
+
+    currentY += 16;
+  }
+
+  // Coach Observations Card
+  if (session.coachNotes) {
+    doc.setFillColor(254, 252, 232); // amber light
+    doc.roundedRect(14, currentY, 182, 14, 1.5, 1.5, 'F');
+    doc.setDrawColor(253, 224, 71);
+    doc.roundedRect(14, currentY, 182, 14, 1.5, 1.5, 'S');
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(161, 98, 7);
+    doc.text('OBSERVAÇÕES DA COMISSÃO:', 18, currentY + 6);
+
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(51, 65, 85);
+    const splitNotes = doc.splitTextToSize(session.coachNotes, 172);
+    doc.text(splitNotes, 18, currentY + 10.5);
+
+    currentY += 18;
+  }
+
+  // Exercises Section
+  doc.setFontSize(10.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(99, 20, 38);
+  doc.text('ESTRUTURA METODOLÓGICA & EXERCÍCIOS ESPECÍFICOS', 14, currentY + 4);
+  currentY += 7;
+
+  session.exercises.forEach((ex, idx) => {
+    if (currentY > 240) {
+      doc.addPage();
+      currentY = 20;
+    }
+
+    const cardHeight = 36 + (ex.coachingPoints.length * 4.5);
+
+    // Exercise Card
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(14, currentY, 182, cardHeight, 2, 2, 'F');
+    doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(14, currentY, 182, cardHeight, 2, 2, 'S');
+
+    // Left accent strip
+    doc.setFillColor(ex.type === 'Aquecimento' ? 22 : ex.type === 'Parte Principal' ? 99 : 217, ex.type === 'Aquecimento' ? 101 : ex.type === 'Parte Principal' ? 20 : 119, ex.type === 'Aquecimento' ? 52 : ex.type === 'Parte Principal' ? 38 : 6);
+    doc.rect(14, currentY, 3, cardHeight, 'F');
+
+    // Badge: Phase
+    doc.setFillColor(241, 245, 249);
+    doc.roundedRect(20, currentY + 4, 30, 6, 1, 1, 'F');
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    doc.text(ex.type.toUpperCase(), 35, currentY + 8, { align: 'center' });
+
+    // Duration Badge
+    doc.setFillColor(254, 242, 242);
+    doc.roundedRect(53, currentY + 4, 16, 6, 1, 1, 'F');
+    doc.setTextColor(153, 27, 27);
+    doc.text(`${ex.durationMinutes} min`, 61, currentY + 8, { align: 'center' });
+
+    // Exercise Title
+    doc.setFontSize(9.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(17, 24, 39);
+    doc.text(`${idx + 1}. ${ex.name}`, 73, currentY + 8.5);
+
+    // Focus
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(99, 20, 38);
+    doc.text('Foco Técnico:', 20, currentY + 15);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(51, 65, 85);
+    doc.text(ex.focus, 42, currentY + 15);
+
+    // Description
+    doc.setFontSize(7.8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(30, 41, 59);
+    const descLines = doc.splitTextToSize(ex.description, 170);
+    doc.text(descLines, 20, currentY + 20);
+
+    // Coaching Points Checklist
+    let cpY = currentY + 28;
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    doc.text('PONTOS-CHAVE DE CORREÇÃO (COACHING POINTS):', 20, cpY);
+
+    ex.coachingPoints.forEach((point) => {
+      cpY += 4.5;
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(51, 65, 85);
+      doc.text(`• ${point}`, 23, cpY);
+    });
+
+    currentY += cardHeight + 5;
+  });
+
+  // Footer
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text('C.A. Juventus SAF Sub-20 • Departamento de Preparação de Goleiros • Documento Técnico Oficial', 14, 290);
+
+  const cleanCode = session.code.replace(/[^a-zA-Z0-9]/g, '_');
+  doc.save(`Plano_Treino_${cleanCode}_Juventus_Sub20.pdf`);
+}
+
 
 

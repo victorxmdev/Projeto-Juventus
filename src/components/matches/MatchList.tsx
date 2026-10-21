@@ -3,6 +3,7 @@ import { Match } from '../../types';
 import { useData } from '../../context/DataContext';
 import { useChampionship } from '../../context/ChampionshipContext';
 import { MatchSheetModal } from './MatchSheetModal';
+import { FpfScoresheetAutoModal } from './FpfScoresheetAutoModal';
 import { PdfViewerModal } from '../common/PdfViewerModal';
 import { RegulationsModal } from '../regulations/RegulationsModal';
 import { PreparatoryVideosModal } from './PreparatoryVideosModal';
@@ -26,7 +27,8 @@ import {
   Video,
   Youtube,
   Play,
-  Film
+  Film,
+  Sparkles
 } from 'lucide-react';
 
 export const MatchList: React.FC = () => {
@@ -35,6 +37,7 @@ export const MatchList: React.FC = () => {
 
   const [selectedMatchForSheet, setSelectedMatchForSheet] = useState<Match | null>(null);
   const [isSheetModalOpen, setIsSheetModalOpen] = useState(false);
+  const [isAutoPdfModalOpen, setIsAutoPdfModalOpen] = useState(false);
   const [isPdfViewerOpen, setIsPdfViewerOpen] = useState(false);
   const [currentPdfUrl, setCurrentPdfUrl] = useState<string>('');
   const [isRegulationsOpen, setIsRegulationsOpen] = useState(false);
@@ -159,11 +162,20 @@ export const MatchList: React.FC = () => {
           </button>
 
           <button
+            onClick={() => setIsAutoPdfModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-700 to-teal-800 text-white font-black text-xs hover:from-emerald-800 hover:to-teal-900 transition-all shadow-sm ring-2 ring-emerald-500/20"
+            title="Lançar súmula em PDF: o sistema extrai e calcula tudo sozinho (escalação, minutagem, substituições e cartões)"
+          >
+            <Sparkles size={15} className="text-amber-300" />
+            <span>Lançar Súmula em PDF (Cálculo Automático)</span>
+          </button>
+
+          <button
             onClick={handleOpenNewMatch}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#631426] text-white font-bold text-xs hover:bg-[#4E0F1E] transition-all shadow-sm"
           >
             <Plus size={15} />
-            <span>+ Registrar Jogo / Súmula</span>
+            <span>+ Registrar Jogo / Súmula Manual</span>
           </button>
         </div>
       </div>
@@ -443,6 +455,12 @@ export const MatchList: React.FC = () => {
       <PreparatoryVideosModal
         isOpen={isPrepModalOpen}
         onClose={() => setIsPrepModalOpen(false)}
+      />
+
+      {/* Automated FPF Scoresheet Parser Modal */}
+      <FpfScoresheetAutoModal
+        isOpen={isAutoPdfModalOpen}
+        onClose={() => setIsAutoPdfModalOpen(false)}
       />
 
     </div>

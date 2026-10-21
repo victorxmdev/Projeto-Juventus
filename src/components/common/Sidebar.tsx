@@ -11,13 +11,14 @@ import {
   ChevronRight,
   TrendingUp,
   FileText,
-  Clock
+  Clock,
+  Target
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useChampionship } from '../../context/ChampionshipContext';
 import { JuventusLogo } from './JuventusLogo';
 
-export type ActiveTab = 'roster' | 'calendar' | 'microcycle' | 'tactical' | 'matches' | 'physical' | 'goalkeeper';
+export type ActiveTab = 'roster' | 'calendar' | 'microcycle' | 'tactical' | 'matches' | 'physical' | 'goalkeeper' | 'pdi';
 
 interface SidebarProps {
   activeTab: ActiveTab;
@@ -80,10 +81,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'goalkeeper' as ActiveTab,
-      label: 'Preparação de Goleiros',
-      badge: 'Trave 3x3',
+      label: 'GK Planner • Goleiros',
+      badge: 'Sistema Oficial',
       icon: ShieldAlert,
-      description: 'Gols sofridos & Periodização'
+      description: 'Dashboard, UTs, Trave 3x3 & Prancheta'
+    },
+    {
+      id: 'pdi' as ActiveTab,
+      label: 'PDI • Plano Individual',
+      badge: 'AIx4Soccer',
+      icon: Target,
+      description: '4 Cantos, Metas SMART & Evidências'
     }
   ];
 

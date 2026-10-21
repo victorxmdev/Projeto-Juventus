@@ -4,6 +4,7 @@ import { useData } from '../../context/DataContext';
 import { useChampionship } from '../../context/ChampionshipContext';
 import { StatusBadge } from '../common/Badge';
 import { PlayerDossierModal } from './PlayerDossierModal';
+import { AthleteEditModal } from './AthleteEditModal';
 import { 
   Search, 
   ArrowUpDown, 
@@ -14,11 +15,22 @@ import {
   Check, 
   ChevronRight,
   TrendingUp,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Edit3
 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 
-type PillFilter = 'ALL' | 'DISPONIVEL' | 'ADAPTADO' | 'LESIONADO' | 'SUSPENSO' | 'PENDURADO';
+type PillFilter = 
+  | 'ALL' 
+  | 'DISPONIVEL' 
+  | 'LESIONADO' 
+  | 'TRANSICAO' 
+  | 'SUSPENSO' 
+  | 'PROFISSIONAL' 
+  | 'TRANSFERIDO' 
+  | 'AFASTADO' 
+  | 'ADAPTADO' 
+  | 'PENDURADO';
 
 export const RosterTable: React.FC = () => {
   const { players, getPlayerStatsForChampionship, addPlayer } = useData();
@@ -29,6 +41,7 @@ export const RosterTable: React.FC = () => {
   const [sortBy, setSortBy] = useState<'minutes' | 'matches' | 'position' | 'rating' | 'number'>('minutes');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // New Player Form State
@@ -51,9 +64,13 @@ export const RosterTable: React.FC = () => {
       // Pill Filter
       const stats = getPlayerStatsForChampionship(player, championship);
       if (activeFilter === 'DISPONIVEL' && player.status !== 'DISPONÍVEL') return false;
-      if (activeFilter === 'ADAPTADO' && player.status !== 'ADAPTADO') return false;
       if (activeFilter === 'LESIONADO' && player.status !== 'LESIONADO') return false;
+      if (activeFilter === 'TRANSICAO' && player.status !== 'TRANSIÇÃO') return false;
       if (activeFilter === 'SUSPENSO' && player.status !== 'SUSPENSO') return false;
+      if (activeFilter === 'PROFISSIONAL' && player.status !== 'PROFISSIONAL') return false;
+      if (activeFilter === 'TRANSFERIDO' && player.status !== 'TRANSFERIDO') return false;
+      if (activeFilter === 'AFASTADO' && player.status !== 'AFASTADO') return false;
+      if (activeFilter === 'ADAPTADO' && player.status !== 'ADAPTADO') return false;
       if (activeFilter === 'PENDURADO' && stats.yellowCards !== 2) return false;
 
       // Text Search
@@ -216,9 +233,13 @@ export const RosterTable: React.FC = () => {
           {[
             { id: 'ALL' as PillFilter, label: 'Todos os Atletas', count: players.length },
             { id: 'DISPONIVEL' as PillFilter, label: 'Disponíveis', count: players.filter(p => p.status === 'DISPONÍVEL').length, color: 'text-emerald-600' },
-            { id: 'ADAPTADO' as PillFilter, label: 'Adaptados', count: players.filter(p => p.status === 'ADAPTADO').length, color: 'text-amber-600' },
-            { id: 'LESIONADO' as PillFilter, label: 'Lesionados (DM)', count: players.filter(p => p.status === 'LESIONADO').length, color: 'text-rose-600' },
+            { id: 'LESIONADO' as PillFilter, label: 'Depto. Médico (DM)', count: players.filter(p => p.status === 'LESIONADO').length, color: 'text-rose-600' },
+            { id: 'TRANSICAO' as PillFilter, label: 'Transição Física', count: players.filter(p => p.status === 'TRANSIÇÃO').length, color: 'text-blue-600' },
             { id: 'SUSPENSO' as PillFilter, label: 'Suspensos', count: players.filter(p => p.status === 'SUSPENSO').length, color: 'text-amber-600' },
+            { id: 'PROFISSIONAL' as PillFilter, label: 'Profissional', count: players.filter(p => p.status === 'PROFISSIONAL').length, color: 'text-purple-600' },
+            { id: 'TRANSFERIDO' as PillFilter, label: 'Transferidos', count: players.filter(p => p.status === 'TRANSFERIDO').length, color: 'text-cyan-600' },
+            { id: 'AFASTADO' as PillFilter, label: 'Afastados', count: players.filter(p => p.status === 'AFASTADO').length, color: 'text-slate-600' },
+            { id: 'ADAPTADO' as PillFilter, label: 'Adaptados', count: players.filter(p => p.status === 'ADAPTADO').length, color: 'text-orange-600' },
             { 
               id: 'PENDURADO' as PillFilter, 
               label: 'Pendurados (2 CA)', 
@@ -354,6 +375,7 @@ export const RosterTable: React.FC = () => {
                 <th className="p-3">Status</th>
                 <th className="p-3">Situação Extra</th>
                 <th className="p-3 text-center">Susp. Cumpridas</th>
+                <th className="p-3 text-center w-24">Ações</th>
               </tr>
             </thead>
 
@@ -361,7 +383,7 @@ export const RosterTable: React.FC = () => {
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {filteredPlayers.length === 0 ? (
                 <tr>
-                  <td colSpan={21} className="p-8 text-center text-slate-400 italic">
+                  <td colSpan={22} className="p-8 text-center text-slate-400 italic">
                     Nenhum atleta encontrado com os filtros selecionados.
                   </td>
                 </tr>
@@ -383,11 +405,20 @@ export const RosterTable: React.FC = () => {
 
                       {/* Atleta */}
                       <td className="p-3 font-semibold text-slate-900 group-hover:text-[#631426] transition-colors">
-                        <div className="flex items-center gap-2">
-                          <span>{player.name}</span>
-                          {isHangingYellow && (
-                            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" title="Pendurado (2 CA)" />
+                        <div className="flex items-center gap-2.5">
+                          {player.photoUrl ? (
+                            <img src={player.photoUrl} alt={player.name} className="w-7 h-7 rounded-full object-cover border border-slate-200" />
+                          ) : (
+                            <div className="w-7 h-7 rounded-full bg-[#631426]/10 text-[#631426] flex items-center justify-center font-bold text-xs">
+                              {player.name.charAt(0)}
+                            </div>
                           )}
+                          <div className="flex items-center gap-1.5">
+                            <span>{player.name}</span>
+                            {isHangingYellow && (
+                              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" title="Pendurado (2 CA)" />
+                            )}
+                          </div>
                         </div>
                       </td>
 
@@ -497,6 +528,22 @@ export const RosterTable: React.FC = () => {
                       <td className="p-3 text-center text-slate-500 font-medium">
                         {stats.suspensionsServed > 0 ? stats.suspensionsServed : '-'}
                       </td>
+
+                      {/* Ações de Edição */}
+                      <td className="p-3 text-center">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingPlayer(player);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-[#631426]/10 hover:bg-[#631426] text-[#631426] hover:text-white font-bold text-[11px] transition-all inline-flex items-center gap-1 shadow-xs"
+                          title="Editar Minutagem, Posição, Foto e Status do Atleta"
+                        >
+                          <Edit3 size={12} />
+                          <span>Editar</span>
+                        </button>
+                      </td>
                     </tr>
                   );
                 })
@@ -511,10 +558,22 @@ export const RosterTable: React.FC = () => {
             Mostrando <strong>{filteredPlayers.length}</strong> de <strong>{players.length}</strong> atletas no elenco
           </span>
           <span className="text-[#631426] font-semibold">
-            Clique em qualquer linha para abrir o dossiê detalhado
+            Clique na linha para ver o dossiê ou no botão "Editar" para alterar dados
           </span>
         </div>
       </div>
+
+      {/* Athlete Full Edit Modal */}
+      <AthleteEditModal
+        player={editingPlayer}
+        isOpen={Boolean(editingPlayer)}
+        onClose={() => setEditingPlayer(null)}
+        onSaved={(updated) => {
+          if (selectedPlayer && selectedPlayer.id === updated.id) {
+            setSelectedPlayer(updated);
+          }
+        }}
+      />
 
       {/* Player Dossier Modal */}
       <PlayerDossierModal

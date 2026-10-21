@@ -10,7 +10,15 @@ export type PositionSector =
   | 'Meia' 
   | 'Atacante';
 
-export type PlayerStatus = 'DISPONÍVEL' | 'LESIONADO' | 'SUSPENSO' | 'ADAPTADO';
+export type PlayerStatus = 
+  | 'DISPONÍVEL' 
+  | 'LESIONADO' 
+  | 'TRANSIÇÃO'
+  | 'SUSPENSO' 
+  | 'PROFISSIONAL'
+  | 'TRANSFERIDO'
+  | 'AFASTADO'
+  | 'ADAPTADO';
 
 export interface PlayerStats {
   totalMatches: number;
@@ -365,4 +373,193 @@ export interface OpponentPenaltyTaker {
     goalkeeperRecommendation: string;
   };
 }
+
+// ==========================================
+// GK PLANNER ECOSYSTEM TYPES
+// ==========================================
+
+export interface GkTrainingExercise {
+  id: string;
+  name: string;
+  type: 'Aquecimento' | 'Parte Principal' | 'Finalização' | 'Situação Real';
+  durationMinutes: number;
+  description: string;
+  focus: string;
+  coachingPoints: string[];
+}
+
+export interface GkTrainingSession {
+  id: string;
+  code: string; // e.g. "UT61"
+  title: string; // e.g. "Agilidade Cognitiva e Defesa de Meta"
+  date: string; // e.g. "31 de ago. de 2026"
+  rawDate: string; // e.g. "2026-08-31"
+  durationMinutes: number; // e.g. 30
+  category: 'Sub-20' | 'Sub-17' | 'Profissional';
+  intensity: 'Baixa' | 'Moderada' | 'Alta';
+  mainObjective: 'Técnico' | 'Físico' | 'Tático' | 'Comportamental';
+  objectivesRatio: {
+    tecnico: number; // %
+    fisico: number; // %
+    tatico: number; // %
+    comportamental: number; // %
+  };
+  exercises: GkTrainingExercise[];
+  coachNotes?: string;
+  involvedGkIds: string[];
+}
+
+export interface GkAthleteInteraction {
+  id: string;
+  athleteId: string;
+  athleteName: string;
+  avatarUrl?: string;
+  action: 'viewed' | 'downloaded_pdf';
+  sessionCode: string;
+  sessionTitle: string;
+  timestamp: string; // e.g. "08/09/2026, 09:42"
+}
+
+export interface GkMatchScout {
+  id: string;
+  athleteId: string;
+  athleteName: string;
+  competition: string;
+  phaseOrRound: string;
+  matchDateStr: string;
+  intensity: 'Jogo intenso' | 'Jogo moderado' | 'Jogo regular';
+  cleanSheet: boolean;
+  savesCount: number;
+  rating: number;
+  notes: string;
+  concededGoalsCount: number;
+}
+
+export interface GkTacticalBoardItem {
+  id: string;
+  title: string;
+  category: 'Sub-20' | 'Geral';
+  dateStr: string;
+  pitchType: 'goal_box' | 'half_pitch' | 'full_pitch';
+  notes?: string;
+  elementsCount: number;
+}
+
+// ==========================================
+// MEDICAL DEPARTMENT & SQUAD AVAILABILITY
+// ==========================================
+
+export interface MedicalDepartmentEntry {
+  id: string;
+  name: string;
+  birthYear: number;
+  injury: string;
+  phase: 'DM' | 'Transição' | 'Tratamento';
+  expectedReturn: string;
+  severity?: 'Leve' | 'Moderada' | 'Grave' | 'Cirúrgica';
+  affectedSide?: string;
+  notes?: string;
+}
+
+export interface SeparateTrainingEntry {
+  id: string;
+  name: string;
+  birthYear: number;
+  situation: string; // 'POSSÍVEL SAÍDA', 'INDEFINIDO', etc.
+  notes?: string;
+}
+
+export interface ExternalAssignmentEntry {
+  id: string;
+  name: string;
+  birthYear: number;
+  positionNumber: number;
+  positionName: string;
+  assignment: 'Profissional' | 'Sub-17';
+  notes?: string;
+}
+
+export interface PositionalSquadSlot {
+  positionNumber: number;
+  positionName: string;
+  sector: 'Defesa' | 'Meio-Campo' | 'Ataque' | 'Goleiro';
+  players: Array<{
+    name: string;
+    birthYear: number;
+    status: 'Disponível' | 'DM' | 'Transição' | 'Profissional' | 'Sub-17' | 'Treino à parte';
+    details?: string;
+  }>;
+}
+
+export interface SquadPlayerRecord36 {
+  name: string;
+  birthYear: number;
+  positionNumber: number;
+  positionName: string;
+  status: 'Disponível' | 'DM' | 'Transição' | 'Profissional' | 'Sub-17' | 'Treino à parte';
+  notes?: string;
+}
+
+// ==========================================
+// PDI FRAMEWORK (AIx4Soccer / Empower FC)
+// Plano de Desenvolvimento Individual
+// ==========================================
+
+export type PdiCorner = 'Técnico / Tático' | 'Físico' | 'Psicológico' | 'Social';
+
+export interface PdiGoal {
+  id: string;
+  athleteId: string;
+  athleteName: string;
+  cycleId: string;
+  corner: PdiCorner;
+  title: string;
+  description: string;
+  targetMetric?: string;
+  currentStatus: 'Não Iniciado' | 'Em Progresso' | 'Em Revisão' | 'Atingido';
+  targetDate: string;
+  trainingAction: string;
+  videoEvidenceUrl?: string;
+  videoEvidenceTimestamp?: string;
+  videoEvidenceNotes?: string;
+  coAuthoredWithAthlete: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PdiReviewMeeting {
+  id: string;
+  athleteId: string;
+  athleteName: string;
+  cycleId: string;
+  date: string;
+  participants: string[];
+  fourCornerAssessment: {
+    technicalTacticalScore: number;
+    physicalScore: number;
+    psychologicalScore: number;
+    socialScore: number;
+    technicalNotes: string;
+    physicalNotes: string;
+    psychologicalNotes: string;
+    socialNotes: string;
+  };
+  coachSummary: string;
+  athleteSelfReflection: string;
+  nextReviewDate: string;
+  goalsReviewedCount: number;
+  goalsMetCount: number;
+  cycleProgressScore: number; // ga(k) = goalsMet / goalsReviewed (0.0 to 1.0)
+}
+
+export interface PdiCycle {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  status: 'Ativo' | 'Concluído' | 'Planejado';
+  description?: string;
+}
+
+
 

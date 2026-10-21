@@ -21,12 +21,17 @@ import {
   Calendar
 } from 'lucide-react';
 
-type PhysicalSubTab = 'results' | 'load' | 'wellness' | 'maturation' | 'sessions' | 'library' | 'group_eval';
+import { MedicalAvailabilityDashboard } from './MedicalAvailabilityDashboard';
+import { PhysicalSessionsView } from './PhysicalSessionsView';
+import { PhysicalTestingLibraryView } from './PhysicalTestingLibraryView';
+import { GroupEvaluationView } from './GroupEvaluationView';
+
+type PhysicalSubTab = 'dm_availability' | 'results' | 'load' | 'wellness' | 'maturation' | 'sessions' | 'library' | 'group_eval';
 
 export const PhysicalModule: React.FC = () => {
   const { physicalAssessments, wellnessRecords, players, addWellnessRecord, addPhysicalAssessment } = useData();
 
-  const [activeSubTab, setActiveSubTab] = useState<PhysicalSubTab>('results');
+  const [activeSubTab, setActiveSubTab] = useState<PhysicalSubTab>('dm_availability');
 
   // Mobile Athlete Questionnaire Modal
   const [isQuestionnaireOpen, setIsQuestionnaireOpen] = useState(false);
@@ -118,6 +123,7 @@ export const PhysicalModule: React.FC = () => {
       {/* Sub-tabs Navigation */}
       <div className="bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm flex items-center gap-1 overflow-x-auto text-xs font-semibold">
         {[
+          { id: 'dm_availability' as PhysicalSubTab, label: '🏥 Depto. Médico & Disponibilidade', badge: 'Planilha 18/08' },
           { id: 'results' as PhysicalSubTab, label: 'Resultados da Equipe' },
           { id: 'load' as PhysicalSubTab, label: 'Ciclos & Carga (ACWR)' },
           { id: 'wellness' as PhysicalSubTab, label: 'Bem-Estar & PSE' },
@@ -131,17 +137,30 @@ export const PhysicalModule: React.FC = () => {
             <button
               key={tab.id}
               onClick={() => setActiveSubTab(tab.id)}
-              className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${
+              className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-all flex items-center gap-1.5 ${
                 isActive
                   ? 'bg-[#631426] text-white font-bold shadow-sm'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
-              {tab.label}
+              <span>{tab.label}</span>
+              {tab.badge && (
+                <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${
+                  isActive ? 'bg-white text-[#631426]' : 'bg-red-100 text-red-800'
+                }`}>
+                  {tab.badge}
+                </span>
+              )}
             </button>
           );
         })}
       </div>
+
+      {/* Sub-tab 0: Depto. Médico & Disponibilidade do Elenco (Planilha Oficial) */}
+      {activeSubTab === 'dm_availability' && (
+        <MedicalAvailabilityDashboard />
+      )}
+
 
       {/* Sub-tab 1: Resultados da Equipe */}
       {activeSubTab === 'results' && (
@@ -512,22 +531,19 @@ export const PhysicalModule: React.FC = () => {
         </div>
       )}
 
-      {/* Sub-tab 5: Sessões Físicas & Biblioteca */}
-      {(activeSubTab === 'sessions' || activeSubTab === 'library' || activeSubTab === 'group_eval') && (
-        <div className="p-6 bg-white rounded-2xl border border-slate-200 shadow-sm text-center space-y-3">
-          <Award size={36} className="mx-auto text-[#631426]" />
-          <h3 className="text-base font-bold text-slate-900">Protocolos Físicos Oficiais C.A. Juventus SAF Sub-20</h3>
-          <p className="text-xs text-slate-500 max-w-lg mx-auto">
-            Testes padronizados de Velocidade (Fotocélula 20m), Yo-Yo Intermittent Recovery Test Level 1 (IR1), Salto Vertical (Plataforma de Contato) e Teste de Agilidade T-Test.
-          </p>
-          <button
-            onClick={() => setIsQuestionnaireOpen(true)}
-            className="px-4 py-2 rounded-xl bg-[#631426] text-white font-bold text-xs inline-flex items-center gap-1.5 hover:bg-[#4E0F1E] shadow-sm transition-colors"
-          >
-            <Plus size={14} />
-            <span>Registrar Nova Coleta de Dados</span>
-          </button>
-        </div>
+      {/* Sub-tab 5: Sessões Físicas */}
+      {activeSubTab === 'sessions' && (
+        <PhysicalSessionsView />
+      )}
+
+      {/* Sub-tab 6: Biblioteca de Testes */}
+      {activeSubTab === 'library' && (
+        <PhysicalTestingLibraryView />
+      )}
+
+      {/* Sub-tab 7: Avaliação em Grupo */}
+      {activeSubTab === 'group_eval' && (
+        <GroupEvaluationView />
       )}
 
       {/* Mobile Questionnaire Modal (Borg PSE & Hooper Wellness) */}

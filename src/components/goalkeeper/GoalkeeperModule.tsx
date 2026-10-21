@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   MatchConcededGoal, 
   GoalkeeperPeriodizationDay, 
   Player, 
-  GoalkeeperVideoCut 
+  GoalkeeperVideoCut,
+  GkTrainingSession,
+  GkAthleteInteraction,
+  GkMatchScout,
+  GkTacticalBoardItem
 } from '../../types';
 import { useData } from '../../context/DataContext';
 import { generateGoalkeeperWeeklyPdf } from '../../services/pdfService';
@@ -32,11 +36,37 @@ import {
   Video,
   ChevronRight,
   Maximize2,
-  Crosshair
+  Crosshair,
+  BarChart2,
+  Users,
+  Layers,
+  TrendingUp,
+  Activity,
+  Award
 } from 'lucide-react';
 import { OpponentPenaltyScouting } from './OpponentPenaltyScouting';
+import { GkPlannerDashboard } from './GkPlannerDashboard';
+import { GkTrainingPlanner } from './GkTrainingPlanner';
+import { GkRosterManager } from './GkRosterManager';
+import { GkTacticalBoard } from './GkTacticalBoard';
+import { GkAnalytics } from './GkAnalytics';
+import {
+  INITIAL_GK_TRAINING_SESSIONS,
+  INITIAL_GK_INTERACTIONS,
+  INITIAL_GK_MATCH_SCOUTS,
+  INITIAL_GK_TACTICAL_BOARDS,
+  INITIAL_GK_WEEKLY_LOAD
+} from '../../data/gkPlannerData';
 
-type GkSubTab = 'video_cuts' | 'goals_conceded' | 'opponent_penalties' | 'periodization' | 'overview';
+type GkSubTab = 
+  | 'dashboard'
+  | 'goleiros'
+  | 'treinos'
+  | 'microciclos'
+  | 'scouting'
+  | 'planejador'
+  | 'video_cuts'
+  | 'analytics';
 
 export const GoalkeeperModule: React.FC = () => {
   const { 
@@ -49,14 +79,60 @@ export const GoalkeeperModule: React.FC = () => {
     deleteGoalConceded, 
     updateGkPeriodization,
     addGkVideoCut,
-    deleteGkVideoCut
+    deleteGkVideoCut,
+    updatePlayer
   } = useData();
 
-  const [activeSubTab, setActiveSubTab] = useState<GkSubTab>('video_cuts');
+  const [activeSubTab, setActiveSubTab] = useState<GkSubTab>('dashboard');
+  const [scoutingSubTab, setScoutingSubTab] = useState<'opponent_penalties' | 'goals_conceded' | 'match_scouts'>('opponent_penalties');
   const [selectedGkFilter, setSelectedGkFilter] = useState<string>('all');
+  const [sessionForModal, setSessionForModal] = useState<GkTrainingSession | null>(null);
+
+  // GK Planner LocalStorage State
+  const [sessions, setSessions] = useState<GkTrainingSession[]>(() => {
+    const saved = localStorage.getItem('juventus_gk_planner_sessions_v2');
+    return saved ? JSON.parse(saved) : INITIAL_GK_TRAINING_SESSIONS;
+  });
+
+  const [interactions, setInteractions] = useState<GkAthleteInteraction[]>(() => {
+    const saved = localStorage.getItem('juventus_gk_planner_interactions_v2');
+    return saved ? JSON.parse(saved) : INITIAL_GK_INTERACTIONS;
+  });
+
+  const [matchScouts, setMatchScouts] = useState<GkMatchScout[]>(() => {
+    const saved = localStorage.getItem('juventus_gk_planner_scouts_v2');
+    return saved ? JSON.parse(saved) : INITIAL_GK_MATCH_SCOUTS;
+  });
+
+  const [tacticalBoards, setTacticalBoards] = useState<GkTacticalBoardItem[]>(() => {
+    const saved = localStorage.getItem('juventus_gk_planner_boards_v2');
+    return saved ? JSON.parse(saved) : INITIAL_GK_TACTICAL_BOARDS;
+  });
+
+  const [weeklyLoad, setWeeklyLoad] = useState(() => {
+    const saved = localStorage.getItem('juventus_gk_planner_weekly_load_v2');
+    return saved ? JSON.parse(saved) : INITIAL_GK_WEEKLY_LOAD;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('juventus_gk_planner_sessions_v2', JSON.stringify(sessions));
+  }, [sessions]);
+
+  useEffect(() => {
+    localStorage.setItem('juventus_gk_planner_interactions_v2', JSON.stringify(interactions));
+  }, [interactions]);
+
+  useEffect(() => {
+    localStorage.setItem('juventus_gk_planner_scouts_v2', JSON.stringify(matchScouts));
+  }, [matchScouts]);
+
+  useEffect(() => {
+    localStorage.setItem('juventus_gk_planner_boards_v2', JSON.stringify(tacticalBoards));
+  }, [tacticalBoards]);
 
   // Goalkeepers in squad
   const goalkeepers = players.filter(p => p.position === 'Goleiro');
+
 
   // Goal registration modal (Trave 3x3)
   const [isRegisterGoalModalOpen, setIsRegisterGoalModalOpen] = useState(false);
@@ -285,38 +361,59 @@ export const GoalkeeperModule: React.FC = () => {
         </div>
       </div>
 
-      {/* Sub-tabs Navigation */}
+      {/* Sub-tabs Navigation (GK Planner System) */}
       <div className="bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between gap-2 overflow-x-auto text-xs font-semibold">
         <div className="flex items-center gap-1">
           {[
             { 
+              id: 'dashboard' as GkSubTab, 
+              label: 'Dashboard', 
+              icon: BarChart2 
+            },
+            { 
+              id: 'goleiros' as GkSubTab, 
+              label: 'Goleiros', 
+              icon: Users,
+              badge: `${goalkeepers.length}`,
+              badgeClass: 'bg-slate-900 text-white'
+            },
+            { 
+              id: 'treinos' as GkSubTab, 
+              label: 'Treinos (UTs)', 
+              icon: Calendar,
+              badge: `${sessions.length}`,
+              badgeClass: 'bg-[#631426] text-white'
+            },
+            { 
+              id: 'microciclos' as GkSubTab, 
+              label: 'Microciclos', 
+              icon: Activity 
+            },
+            { 
+              id: 'scouting' as GkSubTab, 
+              label: 'Scouting Trave 3x3', 
+              icon: Crosshair,
+              badge: 'Gols & Pênaltis',
+              badgeClass: 'bg-[#631426] text-white'
+            },
+            { 
+              id: 'planejador' as GkSubTab, 
+              label: 'Planejador Tático 2D', 
+              icon: Layers,
+              badge: 'Novo',
+              badgeClass: 'bg-emerald-600 text-white'
+            },
+            { 
               id: 'video_cuts' as GkSubTab, 
-              label: 'Cortes & Análise em Vídeo', 
+              label: 'Vídeos & Cortes', 
               icon: Youtube,
               badge: `${gkVideoCuts.length} cortes`,
               badgeClass: 'bg-red-600 text-white'
             },
             { 
-              id: 'goals_conceded' as GkSubTab, 
-              label: 'Gols Sofridos (Trave 3x3)', 
-              icon: Target 
-            },
-            { 
-              id: 'opponent_penalties' as GkSubTab, 
-              label: 'Scouting Pênaltis Adversários (Trave 3x3)', 
-              icon: Crosshair,
-              badge: `${opponentPenaltyTakers.length} batedores`,
-              badgeClass: 'bg-[#631426] text-white'
-            },
-            { 
-              id: 'periodization' as GkSubTab, 
-              label: 'Periodização Semanal (Seg-Sáb)', 
-              icon: Calendar 
-            },
-            { 
-              id: 'overview' as GkSubTab, 
-              label: 'Visão Geral do Setor', 
-              icon: ShieldAlert 
+              id: 'analytics' as GkSubTab, 
+              label: 'Analytics', 
+              icon: TrendingUp 
             },
           ].map((tab) => {
             const Icon = tab.icon;
@@ -345,7 +442,7 @@ export const GoalkeeperModule: React.FC = () => {
           })}
         </div>
 
-        {activeSubTab === 'periodization' && (
+        {activeSubTab === 'microciclos' && (
           <button
             onClick={handleExportPdf}
             className="px-3.5 py-1.5 rounded-lg bg-[#631426] hover:bg-[#4E0F1E] text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-colors"
@@ -379,6 +476,65 @@ export const GoalkeeperModule: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Tab: Dashboard (GK Planner Experience) */}
+      {activeSubTab === 'dashboard' && (
+        <GkPlannerDashboard
+          goalkeepers={goalkeepers}
+          sessions={sessions}
+          interactions={interactions}
+          matchScouts={matchScouts}
+          tacticalBoards={tacticalBoards}
+          weeklyLoad={weeklyLoad}
+          onNavigateToTab={(tabId) => setActiveSubTab(tabId as any)}
+          onOpenNewTrainingModal={() => setActiveSubTab('treinos')}
+          onOpenNewTacticalModal={() => setActiveSubTab('planejador')}
+          onSelectSessionToView={(s) => {
+            setSessionForModal(s);
+            setActiveSubTab('treinos');
+          }}
+        />
+      )}
+
+      {/* Tab: Goleiros (Roster Manager) */}
+      {activeSubTab === 'goleiros' && (
+        <GkRosterManager
+          goalkeepers={goalkeepers}
+          onUpdateGoalkeeper={updatePlayer}
+        />
+      )}
+
+      {/* Tab: Treinos (Training Planner) */}
+      {activeSubTab === 'treinos' && (
+        <GkTrainingPlanner
+          sessions={sessions}
+          goalkeepers={goalkeepers}
+          onAddSession={(newSess) => setSessions([newSess, ...sessions])}
+          onDeleteSession={(id) => setSessions(sessions.filter(s => s.id !== id))}
+          selectedSessionForModal={sessionForModal}
+          onClearSelectedSessionModal={() => setSessionForModal(null)}
+        />
+      )}
+
+      {/* Tab: Planejador Tático 2D */}
+      {activeSubTab === 'planejador' && (
+        <GkTacticalBoard
+          tacticalBoards={tacticalBoards}
+          onSaveBoard={(b) => setTacticalBoards([b, ...tacticalBoards])}
+        />
+      )}
+
+      {/* Tab: Analytics */}
+      {activeSubTab === 'analytics' && (
+        <GkAnalytics
+          sessions={sessions}
+          goalkeepers={goalkeepers}
+          interactions={interactions}
+          matchScouts={matchScouts}
+          weeklyLoad={weeklyLoad}
+        />
+      )}
+
 
       {/* Sub-tab 0: Cortes & Vídeos (YouTube Playlist Integration) */}
       {activeSubTab === 'video_cuts' && (
@@ -771,150 +927,262 @@ export const GoalkeeperModule: React.FC = () => {
         </div>
       )}
 
-      {/* Sub-tab 1: Gols Sofridos (Trave Interativa 3x3) */}
-      {activeSubTab === 'goals_conceded' && (
+      {/* Tab: Scouting Trave 3x3 Hub */}
+      {activeSubTab === 'scouting' && (
         <div className="space-y-4">
           
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            
-            {/* Interactive Goal Frame (3x3 Quadrants) */}
-            <div className="lg:col-span-7 bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div>
-                  <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                    <Target className="text-[#631426]" size={16} />
-                    <span>MAPEAMENTO DE FINALIZAÇÕES E GOLS SOFRIDOS (TRAVE 3X3)</span>
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Clique em qualquer quadrante para registrar novo gol ou analisar incidência
-                  </p>
-                </div>
+          {/* Sub-selector for Scouting */}
+          <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-2 text-xs font-bold">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                onClick={() => setScoutingSubTab('opponent_penalties')}
+                className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                  scoutingSubTab === 'opponent_penalties'
+                    ? 'bg-[#631426] text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <Crosshair size={14} />
+                <span>Pênaltis Adversários (Trave 3x3)</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                  scoutingSubTab === 'opponent_penalties' ? 'bg-white text-[#631426]' : 'bg-[#631426] text-white'
+                }`}>
+                  {opponentPenaltyTakers.length}
+                </span>
+              </button>
 
-                <button
-                  onClick={() => setIsRegisterGoalModalOpen(true)}
-                  className="px-3.5 py-1.5 rounded-xl bg-[#631426] text-white font-bold text-xs hover:bg-[#4E0F1E] shadow-sm flex items-center gap-1 transition-colors"
-                >
-                  <Plus size={14} />
-                  <span>Registrar Gol</span>
-                </button>
-              </div>
+              <button
+                onClick={() => setScoutingSubTab('goals_conceded')}
+                className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                  scoutingSubTab === 'goals_conceded'
+                    ? 'bg-[#631426] text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <Target size={14} />
+                <span>Gols Sofridos na Trave 3x3</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                  scoutingSubTab === 'goals_conceded' ? 'bg-white text-[#631426]' : 'bg-slate-800 text-white'
+                }`}>
+                  {filteredGoals.length}
+                </span>
+              </button>
 
-              {/* Goal Frame Graphic Representation */}
-              <div className="relative w-full max-w-lg mx-auto aspect-[16/9] bg-slate-900 rounded-xl border-4 border-slate-300 shadow-md p-2 flex flex-col justify-between">
-                
-                {/* Net background pattern */}
-                <div className="absolute inset-2 grid grid-cols-3 grid-rows-3 gap-1 z-0 pointer-events-none opacity-20 bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:14px_14px]" />
-
-                {/* 9 Quadrants (3x3 grid) */}
-                <div className="relative z-10 w-full h-full grid grid-cols-3 grid-rows-3 gap-2">
-                  {[
-                    { num: 1, name: 'Ângulo Sup. Esquerdo' },
-                    { num: 2, name: 'Meio Alto' },
-                    { num: 3, name: 'Ângulo Sup. Direito' },
-                    { num: 4, name: 'Meia Altura Esquerda' },
-                    { num: 5, name: 'Centro / Meio' },
-                    { num: 6, name: 'Meia Altura Direita' },
-                    { num: 7, name: 'Canto Inf. Esquerdo' },
-                    { num: 8, name: 'Rasteiro Centro' },
-                    { num: 9, name: 'Canto Inf. Direito' },
-                  ].map(q => {
-                    const count = quadrantCounts[q.num - 1];
-                    const isSelected = selectedQuadrant === q.num;
-
-                    return (
-                      <button
-                        key={q.num}
-                        type="button"
-                        onClick={() => {
-                          setSelectedQuadrant(q.num);
-                          setIsRegisterGoalModalOpen(true);
-                        }}
-                        className={`rounded-lg border flex flex-col items-center justify-center p-2 transition-all cursor-pointer group ${
-                          count > 0 
-                            ? 'bg-rose-950/70 border-rose-600/80 hover:bg-rose-900' 
-                            : 'bg-slate-800/80 border-slate-700 hover:bg-slate-700/90 hover:border-slate-500'
-                        } ${isSelected ? 'ring-2 ring-[#631426]' : ''}`}
-                      >
-                        <span className="text-[10px] text-slate-400 group-hover:text-white uppercase font-bold text-center leading-tight">
-                          Q{q.num}
-                        </span>
-                        <span className={`text-base font-black mt-1 ${count > 0 ? 'text-rose-300' : 'text-slate-400'}`}>
-                          {count} {count === 1 ? 'gol' : 'gols'}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Ground Grass Bar at bottom */}
-                <div className="absolute -bottom-2 left-0 right-0 h-3 bg-emerald-700 rounded-b-md" />
-              </div>
-
-              <div className="flex items-center justify-between text-[11px] text-slate-500 px-2 pt-2 border-t border-slate-100">
-                <span>Total mapeado: <strong className="text-slate-900">{filteredGoals.length} gols sofridos</strong></span>
-                <span className="text-[#631426] font-bold">Trave Oficial: 7,32m x 2,44m</span>
-              </div>
+              <button
+                onClick={() => setScoutingSubTab('match_scouts')}
+                className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                  scoutingSubTab === 'match_scouts'
+                    ? 'bg-[#631426] text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <Award size={14} />
+                <span>Scouts de Jogos Oficiais</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                  scoutingSubTab === 'match_scouts' ? 'bg-white text-[#631426]' : 'bg-slate-800 text-white'
+                }`}>
+                  {matchScouts.length}
+                </span>
+              </button>
             </div>
 
-            {/* Conceded Goals Log List */}
-            <div className="lg:col-span-5 bg-white p-5 rounded-2xl border border-slate-200 space-y-3 shadow-sm">
-              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">
-                Histórico Detalhado de Gols Sofridos
-              </h4>
-
-              <div className="space-y-2 max-h-[420px] overflow-y-auto">
-                {filteredGoals.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic text-center py-6">
-                    Nenhum gol sofrido registrado para este filtro. Defesa invicta!
-                  </p>
-                ) : (
-                  filteredGoals.map((g) => {
-                    const gk = players.find(p => p.id === g.goalkeeperId);
-                    return (
-                      <div key={g.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5 text-xs">
-                        <div className="flex items-center justify-between">
-                          <span className="font-extrabold text-[#631426] flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-rose-500" />
-                            {g.minute}' Minuto • Quadrante Q{g.quadrant}
-                          </span>
-                          <span className="text-[10px] font-bold text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200">
-                            {gk?.name || 'Goleiro'}
-                          </span>
-                        </div>
-
-                        <p className="text-slate-700">
-                          <strong className="text-slate-900">{g.shotType}</strong> ({g.shotOrigin})
-                        </p>
-
-                        <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200">
-                          <span className="capitalize text-slate-500">Situação: <strong className="text-slate-700">{g.situation.replace('_', ' ')}</strong></span>
-                          <button
-                            onClick={() => deleteGoalConceded(g.id)}
-                            className="text-slate-400 hover:text-rose-600 p-0.5 transition-colors"
-                            title="Excluir registro"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
+            {scoutingSubTab === 'goals_conceded' && (
+              <button
+                onClick={() => setIsRegisterGoalModalOpen(true)}
+                className="px-3.5 py-1.5 rounded-xl bg-[#631426] text-white font-bold text-xs hover:bg-[#4E0F1E] shadow-sm flex items-center gap-1 transition-colors"
+              >
+                <Plus size={14} />
+                <span>Registrar Gol</span>
+              </button>
+            )}
           </div>
+
+          {/* Sub-view 1: Opponent Penalty Scouting */}
+          {scoutingSubTab === 'opponent_penalties' && (
+            <OpponentPenaltyScouting />
+          )}
+
+          {/* Sub-view 2: Goals Conceded Trave 3x3 */}
+          {scoutingSubTab === 'goals_conceded' && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              
+              {/* Interactive Goal Frame (3x3 Quadrants) */}
+              <div className="lg:col-span-7 bg-white p-5 rounded-2xl border border-slate-200 space-y-4 shadow-sm">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                      <Target className="text-[#631426]" size={16} />
+                      <span>MAPEAMENTO DE FINALIZAÇÕES E GOLS SOFRIDOS (TRAVE 3X3)</span>
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Clique em qualquer quadrante para registrar novo gol ou analisar incidência
+                    </p>
+                  </div>
+                </div>
+
+                {/* Goal Frame Graphic Representation */}
+                <div className="relative w-full max-w-lg mx-auto aspect-[16/9] bg-slate-900 rounded-xl border-4 border-slate-300 shadow-md p-2 flex flex-col justify-between">
+                  
+                  {/* Net background pattern */}
+                  <div className="absolute inset-2 grid grid-cols-3 grid-rows-3 gap-1 z-0 pointer-events-none opacity-20 bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:14px_14px]" />
+
+                  {/* 9 Quadrants (3x3 grid) */}
+                  <div className="relative z-10 w-full h-full grid grid-cols-3 grid-rows-3 gap-2">
+                    {[
+                      { num: 1, name: 'Ângulo Sup. Esquerdo' },
+                      { num: 2, name: 'Meio Alto' },
+                      { num: 3, name: 'Ângulo Sup. Direito' },
+                      { num: 4, name: 'Meia Altura Esquerda' },
+                      { num: 5, name: 'Centro / Meio' },
+                      { num: 6, name: 'Meia Altura Direita' },
+                      { num: 7, name: 'Canto Inf. Esquerdo' },
+                      { num: 8, name: 'Rasteiro Centro' },
+                      { num: 9, name: 'Canto Inf. Direito' },
+                    ].map(q => {
+                      const count = quadrantCounts[q.num - 1];
+                      const isSelected = selectedQuadrant === q.num;
+
+                      return (
+                        <button
+                          key={q.num}
+                          type="button"
+                          onClick={() => {
+                            setSelectedQuadrant(q.num);
+                            setIsRegisterGoalModalOpen(true);
+                          }}
+                          className={`rounded-lg border flex flex-col items-center justify-center p-2 transition-all cursor-pointer group ${
+                            count > 0 
+                              ? 'bg-rose-950/70 border-rose-600/80 hover:bg-rose-900' 
+                              : 'bg-slate-800/80 border-slate-700 hover:bg-slate-700/90 hover:border-slate-500'
+                          } ${isSelected ? 'ring-2 ring-[#631426]' : ''}`}
+                        >
+                          <span className="text-[10px] text-slate-400 group-hover:text-white uppercase font-bold text-center leading-tight">
+                            Q{q.num}
+                          </span>
+                          <span className={`text-base font-black mt-1 ${count > 0 ? 'text-rose-300' : 'text-slate-400'}`}>
+                            {count} {count === 1 ? 'gol' : 'gols'}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Ground Grass Bar at bottom */}
+                  <div className="absolute -bottom-2 left-0 right-0 h-3 bg-emerald-700 rounded-b-md" />
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-slate-500 px-2 pt-2 border-t border-slate-100">
+                  <span>Total mapeado: <strong className="text-slate-900">{filteredGoals.length} gols sofridos</strong></span>
+                  <span className="text-[#631426] font-bold">Trave Oficial: 7,32m x 2,44m</span>
+                </div>
+              </div>
+
+              {/* Conceded Goals Log List */}
+              <div className="lg:col-span-5 bg-white p-5 rounded-2xl border border-slate-200 space-y-3 shadow-sm">
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">
+                  Histórico Detalhado de Gols Sofridos
+                </h4>
+
+                <div className="space-y-2 max-h-[420px] overflow-y-auto">
+                  {filteredGoals.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic text-center py-6">
+                      Nenhum gol sofrido registrado para este filtro. Defesa invicta!
+                    </p>
+                  ) : (
+                    filteredGoals.map((g) => {
+                      const gk = players.find(p => p.id === g.goalkeeperId);
+                      return (
+                        <div key={g.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="font-extrabold text-[#631426] flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-rose-500" />
+                              {g.minute}' Minuto • Quadrante Q{g.quadrant}
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200">
+                              {gk?.name || 'Goleiro'}
+                            </span>
+                          </div>
+
+                          <p className="text-slate-700">
+                            <strong className="text-slate-900">{g.shotType}</strong> ({g.shotOrigin})
+                          </p>
+
+                          <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200">
+                            <span className="capitalize text-slate-500">Situação: <strong className="text-slate-700">{g.situation.replace('_', ' ')}</strong></span>
+                            <button
+                              onClick={() => deleteGoalConceded(g.id)}
+                              className="text-slate-400 hover:text-rose-600 p-0.5 transition-colors"
+                              title="Excluir registro"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* Sub-view 3: Official Match Scouts */}
+          {scoutingSubTab === 'match_scouts' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {matchScouts.map((scout) => (
+                  <div key={scout.id} className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase text-[#631426] tracking-wider">
+                        {scout.competition}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
+                        scout.cleanSheet ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'
+                      }`}>
+                        {scout.cleanSheet ? 'Clean Sheet' : `${scout.concededGoalsCount} gol sofrido`}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-extrabold text-slate-900">
+                        {scout.athleteName}
+                      </h4>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {scout.phaseOrRound} • {scout.matchDateStr}
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-center text-xs">
+                      <div>
+                        <span className="text-[10px] text-slate-400 block font-bold">Defesas</span>
+                        <strong className="text-slate-900">{scout.savesCount}</strong>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block font-bold">Nota</span>
+                        <strong className="text-[#631426]">{scout.rating.toFixed(1)}</strong>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block font-bold">Intensidade</span>
+                        <strong className="text-xs text-amber-700">{scout.intensity.split(' ')[1] || 'Alta'}</strong>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-slate-600 leading-relaxed italic bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
+                      "{scout.notes}"
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
         </div>
       )}
 
-      {/* Sub-tab: Scouting de Pênaltis de Adversários (Trave 3x3) */}
-      {activeSubTab === 'opponent_penalties' && (
-        <OpponentPenaltyScouting />
-      )}
+      {/* Sub-tab: Periodização Semanal (Microciclos) */}
+      {activeSubTab === 'microciclos' && (
 
-      {/* Sub-tab 2: Periodização Semanal (Segunda a Sábado) */}
-      {activeSubTab === 'periodization' && (
         <div className="space-y-4">
           
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
@@ -1026,35 +1294,7 @@ export const GoalkeeperModule: React.FC = () => {
         </div>
       )}
 
-      {/* Sub-tab 3: Visão Geral */}
-      {activeSubTab === 'overview' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {goalkeepers.map(gk => (
-            <div key={gk.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-[#631426] border border-[#D4AF37] flex items-center justify-center font-black text-lg text-[#D4AF37] shadow-sm">
-                  #{gk.number}
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900">{gk.name}</h4>
-                  <p className="text-xs text-slate-500">{gk.birthYear} ({2026 - gk.birthYear} anos) • {gk.heightCm} cm</p>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-100">
-                <div><span className="text-slate-500">Nota Treino:</span> <strong className="text-[#631426] ml-1">{gk.trainingRating}</strong></div>
-                <div><span className="text-slate-500">Nota Jogo:</span> <strong className="text-emerald-700 ml-1">{gk.matchRating}</strong></div>
-                <div><span className="text-slate-500">Presença:</span> <strong className="text-slate-900 ml-1">{gk.trainingAttendancePct}%</strong></div>
-                <div><span className="text-slate-500">Minutos Treino:</span> <strong className="text-slate-900 ml-1">{gk.trainingMinutes}'</strong></div>
-              </div>
-
-              <p className="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                {gk.notes}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Modal: Registrar Gol Sofrido na Trave 3x3 */}
       <Modal

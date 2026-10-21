@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Player, ChampionshipType } from '../../types';
+import React, { useState, useEffect } from 'react';
+import { Player, ChampionshipType, PositionSector, PlayerStatus } from '../../types';
 import { Modal } from '../common/Modal';
 import { StatusBadge } from '../common/Badge';
 import { useChampionship } from '../../context/ChampionshipContext';
@@ -16,7 +16,10 @@ import {
   Save, 
   TrendingUp,
   Shield,
-  Edit3
+  Edit3,
+  CheckCircle2,
+  Image,
+  Trophy
 } from 'lucide-react';
 
 interface PlayerDossierModalProps {
@@ -37,6 +40,13 @@ export const PlayerDossierModal: React.FC<PlayerDossierModalProps> = ({
 
   const [activeTab, setActiveTab] = useState<'overview' | 'matches' | 'physical' | 'medical' | 'edit'>('overview');
   const [editedPlayer, setEditedPlayer] = useState<Player>(player);
+  const [saveSuccessToast, setSaveSuccessToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (player) {
+      setEditedPlayer(JSON.parse(JSON.stringify(player)));
+    }
+  }, [player]);
 
   const stats = getPlayerStatsForChampionship(player, championship);
 
@@ -46,8 +56,11 @@ export const PlayerDossierModal: React.FC<PlayerDossierModalProps> = ({
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
     updatePlayer(editedPlayer);
-    alert('Dados do atleta atualizados com sucesso!');
-    setActiveTab('overview');
+    setSaveSuccessToast('Dados e minutagem do atleta atualizados com sucesso!');
+    setTimeout(() => {
+      setSaveSuccessToast(null);
+      setActiveTab('overview');
+    }, 1200);
   };
 
   return (
@@ -69,13 +82,28 @@ export const PlayerDossierModal: React.FC<PlayerDossierModalProps> = ({
       maxWidth="4xl"
     >
       <div className="space-y-5">
+
+        {saveSuccessToast && (
+          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm animate-fade-in">
+            <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+            <span>{saveSuccessToast}</span>
+          </div>
+        )}
         
         {/* Profile Header Card */}
         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-xl bg-[#631426] flex items-center justify-center text-white font-black text-2xl shadow-sm">
-              {player.number}
-            </div>
+            {player.photoUrl ? (
+              <img 
+                src={player.photoUrl} 
+                alt={player.name} 
+                className="w-16 h-16 rounded-xl object-cover border-2 border-[#631426] shadow-sm flex-shrink-0"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-xl bg-[#631426] flex items-center justify-center text-white font-black text-2xl shadow-sm flex-shrink-0">
+                {player.number}
+              </div>
+            )}
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-base font-bold text-slate-900">{player.position}</span>
@@ -323,50 +351,420 @@ export const PlayerDossierModal: React.FC<PlayerDossierModalProps> = ({
 
         {/* Tab 5: Edit Athlete */}
         {activeTab === 'edit' && (
-          <form onSubmit={handleSaveEdit} className="space-y-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Editar Informações Cadastrais</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <form onSubmit={handleSaveEdit} className="space-y-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm text-xs">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h4 className="font-black text-slate-800 uppercase tracking-wider">
+                Edição Completa do Atleta
+              </h4>
+              <span className="text-[10px] text-slate-400">
+                Altere minutagem, posições, status e foto diretamente
+              </span>
+            </div>
+
+            {/* DADOS CADASTRAIS & FOTO */}
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+              <span className="font-bold text-slate-800 uppercase text-[10px] block">
+                1. Identificação, Posição & Foto
+              </span>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-slate-600 font-bold mb-1">Número (#)</label>
+                  <input 
+                    type="number" 
+                    value={editedPlayer.number}
+                    onChange={e => setEditedPlayer({ ...editedPlayer, number: parseInt(e.target.value) || 1 })}
+                    className="w-full bg-white border border-slate-200 rounded-lg p-2 font-black text-slate-900 focus:border-[#631426] focus:outline-none" 
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 font-medium mb-1">Nome Completo</label>
+                  <input 
+                    type="text" 
+                    value={editedPlayer.name}
+                    onChange={e => setEditedPlayer({ ...editedPlayer, name: e.target.value })}
+                    className="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-800 font-bold focus:border-[#631426] focus:outline-none" 
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 font-medium mb-1">Nome na Súmula (FPF)</label>
+                  <input 
+                    type="text" 
+                    value={editedPlayer.matchSheetName}
+                    onChange={e => setEditedPlayer({ ...editedPlayer, matchSheetName: e.target.value.toUpperCase() })}
+                    className="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-800 uppercase font-mono focus:border-[#631426] focus:outline-none" 
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-600 font-bold mb-1">Posição / Setor Tático *</label>
+                  <select
+                    value={editedPlayer.position}
+                    onChange={e => setEditedPlayer({ ...editedPlayer, position: e.target.value as PositionSector })}
+                    className="w-full bg-white border border-slate-200 rounded-lg p-2 font-bold text-slate-900 focus:border-[#631426] focus:outline-none"
+                  >
+                    <option value="Goleiro">Goleiro</option>
+                    <option value="Lateral Direito">Lateral Direito</option>
+                    <option value="Zagueiro Central">Zagueiro Central</option>
+                    <option value="Zagueiro Esquerdo">Zagueiro Esquerdo</option>
+                    <option value="Lateral Esquerdo">Lateral Esquerdo</option>
+                    <option value="Volante">Volante</option>
+                    <option value="Meia">Meia</option>
+                    <option value="Atacante">Atacante</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 font-medium mb-1">Função / Posição Detalhada</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ex: Zagueiro Central / Volante"
+                    value={editedPlayer.detailedPosition || ''}
+                    onChange={e => setEditedPlayer({ ...editedPlayer, detailedPosition: e.target.value })}
+                    className="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:border-[#631426] focus:outline-none" 
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block text-slate-600 font-medium mb-1">Nome Completo</label>
+                <label className="block text-slate-600 font-medium mb-1">URL da Foto do Atleta</label>
                 <input 
-                  type="text" 
-                  value={editedPlayer.name}
-                  onChange={e => setEditedPlayer({ ...editedPlayer, name: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-slate-800 focus:bg-white focus:border-[#631426] focus:outline-none" 
+                  type="url" 
+                  placeholder="https://exemplo.com/foto.jpg"
+                  value={editedPlayer.photoUrl || ''}
+                  onChange={e => setEditedPlayer({ ...editedPlayer, photoUrl: e.target.value })}
+                  className="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:border-[#631426] focus:outline-none" 
                 />
               </div>
-              <div>
-                <label className="block text-slate-600 font-medium mb-1">Nome na Súmula</label>
-                <input 
-                  type="text" 
-                  value={editedPlayer.matchSheetName}
-                  onChange={e => setEditedPlayer({ ...editedPlayer, matchSheetName: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-slate-800 focus:bg-white focus:border-[#631426] focus:outline-none" 
-                />
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-slate-600 font-medium mb-1">Nascimento (Ano)</label>
+                  <input 
+                    type="number" 
+                    value={editedPlayer.birthYear}
+                    onChange={e => setEditedPlayer({ ...editedPlayer, birthYear: parseInt(e.target.value) || 2007 })}
+                    className="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:border-[#631426] focus:outline-none" 
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 font-medium mb-1">Pé Dominante</label>
+                  <select
+                    value={editedPlayer.dominantFoot || 'Destro'}
+                    onChange={e => setEditedPlayer({ ...editedPlayer, dominantFoot: e.target.value as any })}
+                    className="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:border-[#631426] focus:outline-none"
+                  >
+                    <option value="Destro">Destro</option>
+                    <option value="Canhoto">Canhoto</option>
+                    <option value="Ambidestro">Ambidestro</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 font-medium mb-1">Altura (cm)</label>
+                  <input 
+                    type="number" 
+                    value={editedPlayer.heightCm || 180}
+                    onChange={e => setEditedPlayer({ ...editedPlayer, heightCm: parseInt(e.target.value) || 180 })}
+                    className="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:border-[#631426] focus:outline-none" 
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 font-medium mb-1">Peso (kg)</label>
+                  <input 
+                    type="number" 
+                    step="0.1"
+                    value={editedPlayer.weightKg || 74}
+                    onChange={e => setEditedPlayer({ ...editedPlayer, weightKg: parseFloat(e.target.value) || 74 })}
+                    className="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:border-[#631426] focus:outline-none" 
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-slate-600 font-medium mb-1">Status do Atleta</label>
-                <select
-                  value={editedPlayer.status}
-                  onChange={e => setEditedPlayer({ ...editedPlayer, status: e.target.value as any })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-slate-800 focus:bg-white focus:border-[#631426] focus:outline-none" 
-                >
-                  <option value="DISPONÍVEL">DISPONÍVEL</option>
-                  <option value="LESIONADO">LESIONADO</option>
-                  <option value="SUSPENSO">SUSPENSO</option>
-                  <option value="ADAPTADO">ADAPTADO</option>
-                </select>
+            </div>
+
+            {/* STATUS & DISPONIBILIDADE */}
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+              <span className="font-bold text-slate-800 uppercase text-[10px] block">
+                2. Disponibilidade, Status & Observação Médica
+              </span>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-600 font-bold mb-1">Status do Atleta *</label>
+                  <select
+                    value={editedPlayer.status}
+                    onChange={e => setEditedPlayer({ ...editedPlayer, status: e.target.value as any })}
+                    className="w-full bg-white border border-slate-200 rounded-lg p-2 font-bold text-slate-800 focus:border-[#631426] focus:outline-none" 
+                  >
+                    <option value="DISPONÍVEL">DISPONÍVEL (Apto para jogos e treinos)</option>
+                    <option value="LESIONADO">LESIONADO (Depto. Médico / DM)</option>
+                    <option value="TRANSIÇÃO">TRANSIÇÃO (Transição Física de campo)</option>
+                    <option value="SUSPENSO">SUSPENSO (Suspensão FPF)</option>
+                    <option value="PROFISSIONAL">PROFISSIONAL (Integrado ao Elenco Profissional)</option>
+                    <option value="TRANSFERIDO">TRANSFERIDO (Transferido / Emprestado)</option>
+                    <option value="AFASTADO">AFASTADO (Afastado temporariamente)</option>
+                    <option value="ADAPTADO">ADAPTADO (Carga Controlada)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 font-medium mb-1">Situação Extra / DM / Clube de Destino</label>
+                  <input 
+                    type="text" 
+                    value={editedPlayer.extraSituation || ''}
+                    placeholder="ex: DM - Entorse tornozelo grau II | Promovido Série A2"
+                    onChange={e => setEditedPlayer({ ...editedPlayer, extraSituation: e.target.value })}
+                    className="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:border-[#631426] focus:outline-none" 
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-slate-600 font-medium mb-1">Situação Extra / DM</label>
-                <input 
-                  type="text" 
-                  value={editedPlayer.extraSituation || ''}
-                  placeholder="ex: DM - Entorse grau 2"
-                  onChange={e => setEditedPlayer({ ...editedPlayer, extraSituation: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-slate-800 focus:bg-white focus:border-[#631426] focus:outline-none" 
-                />
+            </div>
+
+            {/* MINUTAGEM PAULISTA */}
+            <div className="p-3 bg-red-50/60 rounded-xl border border-red-200 space-y-2">
+              <span className="font-black text-red-950 uppercase text-[10px] block">
+                3. Minutagem & Estatísticas • Campeonato Paulista Sub-20
+              </span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div>
+                  <label className="block text-[10px] text-slate-600 font-bold">Total Minutos (TJ)</label>
+                  <input 
+                    type="number" 
+                    value={editedPlayer.statsByChampionship.paulista.totalMinutes}
+                    onChange={e => {
+                      const v = parseInt(e.target.value) || 0;
+                      setEditedPlayer({
+                        ...editedPlayer,
+                        statsByChampionship: {
+                          ...editedPlayer.statsByChampionship,
+                          paulista: { ...editedPlayer.statsByChampionship.paulista, totalMinutes: v }
+                        }
+                      });
+                    }}
+                    className="w-full bg-white border border-slate-200 rounded p-1.5 font-black text-sm text-[#631426]" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-slate-600 font-bold">Partidas</label>
+                  <input 
+                    type="number" 
+                    value={editedPlayer.statsByChampionship.paulista.totalMatches}
+                    onChange={e => {
+                      const v = parseInt(e.target.value) || 0;
+                      setEditedPlayer({
+                        ...editedPlayer,
+                        statsByChampionship: {
+                          ...editedPlayer.statsByChampionship,
+                          paulista: { ...editedPlayer.statsByChampionship.paulista, totalMatches: v }
+                        }
+                      });
+                    }}
+                    className="w-full bg-white border border-slate-200 rounded p-1.5 font-bold" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-slate-600 font-bold">Titular (T)</label>
+                  <input 
+                    type="number" 
+                    value={editedPlayer.statsByChampionship.paulista.starterCount}
+                    onChange={e => {
+                      const v = parseInt(e.target.value) || 0;
+                      setEditedPlayer({
+                        ...editedPlayer,
+                        statsByChampionship: {
+                          ...editedPlayer.statsByChampionship,
+                          paulista: { ...editedPlayer.statsByChampionship.paulista, starterCount: v }
+                        }
+                      });
+                    }}
+                    className="w-full bg-white border border-slate-200 rounded p-1.5 font-bold text-emerald-700" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-slate-600 font-bold">Reserva Usado (SU)</label>
+                  <input 
+                    type="number" 
+                    value={editedPlayer.statsByChampionship.paulista.subUsedCount}
+                    onChange={e => {
+                      const v = parseInt(e.target.value) || 0;
+                      setEditedPlayer({
+                        ...editedPlayer,
+                        statsByChampionship: {
+                          ...editedPlayer.statsByChampionship,
+                          paulista: { ...editedPlayer.statsByChampionship.paulista, subUsedCount: v }
+                        }
+                      });
+                    }}
+                    className="w-full bg-white border border-slate-200 rounded p-1.5 font-bold text-blue-700" 
+                  />
+                </div>
               </div>
+
+              <div className="grid grid-cols-4 gap-2 pt-1">
+                <div>
+                  <label className="block text-[10px] text-slate-600">Gols</label>
+                  <input 
+                    type="number" 
+                    value={editedPlayer.statsByChampionship.paulista.goals}
+                    onChange={e => {
+                      const v = parseInt(e.target.value) || 0;
+                      setEditedPlayer({
+                        ...editedPlayer,
+                        statsByChampionship: {
+                          ...editedPlayer.statsByChampionship,
+                          paulista: { ...editedPlayer.statsByChampionship.paulista, goals: v }
+                        }
+                      });
+                    }}
+                    className="w-full bg-white border border-slate-200 rounded p-1 font-bold text-amber-700" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-slate-600">Assistências</label>
+                  <input 
+                    type="number" 
+                    value={editedPlayer.statsByChampionship.paulista.assists}
+                    onChange={e => {
+                      const v = parseInt(e.target.value) || 0;
+                      setEditedPlayer({
+                        ...editedPlayer,
+                        statsByChampionship: {
+                          ...editedPlayer.statsByChampionship,
+                          paulista: { ...editedPlayer.statsByChampionship.paulista, assists: v }
+                        }
+                      });
+                    }}
+                    className="w-full bg-white border border-slate-200 rounded p-1 font-bold text-sky-700" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-slate-600">Amarelos (CA)</label>
+                  <input 
+                    type="number" 
+                    value={editedPlayer.statsByChampionship.paulista.yellowCards}
+                    onChange={e => {
+                      const v = parseInt(e.target.value) || 0;
+                      setEditedPlayer({
+                        ...editedPlayer,
+                        statsByChampionship: {
+                          ...editedPlayer.statsByChampionship,
+                          paulista: { ...editedPlayer.statsByChampionship.paulista, yellowCards: v }
+                        }
+                      });
+                    }}
+                    className="w-full bg-white border border-slate-200 rounded p-1 font-bold text-amber-800" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-slate-600">Vermelhos (CV)</label>
+                  <input 
+                    type="number" 
+                    value={editedPlayer.statsByChampionship.paulista.redCards}
+                    onChange={e => {
+                      const v = parseInt(e.target.value) || 0;
+                      setEditedPlayer({
+                        ...editedPlayer,
+                        statsByChampionship: {
+                          ...editedPlayer.statsByChampionship,
+                          paulista: { ...editedPlayer.statsByChampionship.paulista, redCards: v }
+                        }
+                      });
+                    }}
+                    className="w-full bg-white border border-slate-200 rounded p-1 font-bold text-rose-700" 
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* MINUTAGEM COPINHA */}
+            <div className="p-3 bg-amber-50/60 rounded-xl border border-amber-200 space-y-2">
+              <span className="font-black text-amber-950 uppercase text-[10px] block">
+                4. Minutagem & Estatísticas • Copa São Paulo (Copinha)
+              </span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div>
+                  <label className="block text-[10px] text-slate-600 font-bold">Total Minutos (TJ)</label>
+                  <input 
+                    type="number" 
+                    value={editedPlayer.statsByChampionship.copinha?.totalMinutes || 0}
+                    onChange={e => {
+                      const v = parseInt(e.target.value) || 0;
+                      setEditedPlayer({
+                        ...editedPlayer,
+                        statsByChampionship: {
+                          ...editedPlayer.statsByChampionship,
+                          copinha: { ...(editedPlayer.statsByChampionship.copinha || {} as any), totalMinutes: v }
+                        }
+                      });
+                    }}
+                    className="w-full bg-white border border-slate-200 rounded p-1.5 font-black text-sm text-[#631426]" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-slate-600 font-bold">Partidas</label>
+                  <input 
+                    type="number" 
+                    value={editedPlayer.statsByChampionship.copinha?.totalMatches || 0}
+                    onChange={e => {
+                      const v = parseInt(e.target.value) || 0;
+                      setEditedPlayer({
+                        ...editedPlayer,
+                        statsByChampionship: {
+                          ...editedPlayer.statsByChampionship,
+                          copinha: { ...(editedPlayer.statsByChampionship.copinha || {} as any), totalMatches: v }
+                        }
+                      });
+                    }}
+                    className="w-full bg-white border border-slate-200 rounded p-1.5 font-bold" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-slate-600 font-bold">Titular (T)</label>
+                  <input 
+                    type="number" 
+                    value={editedPlayer.statsByChampionship.copinha?.starterCount || 0}
+                    onChange={e => {
+                      const v = parseInt(e.target.value) || 0;
+                      setEditedPlayer({
+                        ...editedPlayer,
+                        statsByChampionship: {
+                          ...editedPlayer.statsByChampionship,
+                          copinha: { ...(editedPlayer.statsByChampionship.copinha || {} as any), starterCount: v }
+                        }
+                      });
+                    }}
+                    className="w-full bg-white border border-slate-200 rounded p-1.5 font-bold text-emerald-700" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-slate-600 font-bold">Reserva Usado (SU)</label>
+                  <input 
+                    type="number" 
+                    value={editedPlayer.statsByChampionship.copinha?.subUsedCount || 0}
+                    onChange={e => {
+                      const v = parseInt(e.target.value) || 0;
+                      setEditedPlayer({
+                        ...editedPlayer,
+                        statsByChampionship: {
+                          ...editedPlayer.statsByChampionship,
+                          copinha: { ...(editedPlayer.statsByChampionship.copinha || {} as any), subUsedCount: v }
+                        }
+                      });
+                    }}
+                    className="w-full bg-white border border-slate-200 rounded p-1.5 font-bold text-blue-700" 
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* NOTAS & OBSERVAÇÕES */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
                 <label className="block text-slate-600 font-medium mb-1">Nota Treino (0 - 10)</label>
                 <input 
@@ -387,16 +785,38 @@ export const PlayerDossierModal: React.FC<PlayerDossierModalProps> = ({
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-slate-800 focus:bg-white focus:border-[#631426] focus:outline-none" 
                 />
               </div>
-              <div className="sm:col-span-2">
-                <label className="block text-slate-600 font-medium mb-1">Observações da Comissão Técnica</label>
-                <textarea 
-                  rows={2}
-                  value={editedPlayer.notes || ''}
-                  onChange={e => setEditedPlayer({ ...editedPlayer, notes: e.target.value })}
+              <div>
+                <label className="block text-slate-600 font-medium mb-1">% Presença Treino</label>
+                <input 
+                  type="number" 
+                  min="0"
+                  max="100"
+                  value={editedPlayer.trainingAttendancePct}
+                  onChange={e => setEditedPlayer({ ...editedPlayer, trainingAttendancePct: parseInt(e.target.value) || 0 })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-slate-800 focus:bg-white focus:border-[#631426] focus:outline-none" 
+                />
+              </div>
+              <div>
+                <label className="block text-slate-600 font-medium mb-1">Min. Treino</label>
+                <input 
+                  type="number" 
+                  value={editedPlayer.trainingMinutes}
+                  onChange={e => setEditedPlayer({ ...editedPlayer, trainingMinutes: parseInt(e.target.value) || 0 })}
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-slate-800 focus:bg-white focus:border-[#631426] focus:outline-none" 
                 />
               </div>
             </div>
+
+            <div>
+              <label className="block text-slate-600 font-medium mb-1">Observações da Comissão Técnica</label>
+              <textarea 
+                rows={2}
+                value={editedPlayer.notes || ''}
+                onChange={e => setEditedPlayer({ ...editedPlayer, notes: e.target.value })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-slate-800 focus:bg-white focus:border-[#631426] focus:outline-none" 
+              />
+            </div>
+
             <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
               <button
                 type="button"
@@ -407,10 +827,10 @@ export const PlayerDossierModal: React.FC<PlayerDossierModalProps> = ({
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 rounded-xl bg-[#631426] text-white font-semibold text-xs flex items-center gap-1.5 hover:bg-[#4E0F1E] shadow-sm"
+                className="px-5 py-2 rounded-xl bg-[#631426] text-white font-bold text-xs flex items-center gap-1.5 hover:bg-[#4E0F1E] shadow-sm"
               >
                 <Save size={14} />
-                <span>Salvar Alterações</span>
+                <span>Salvar Todas as Alterações</span>
               </button>
             </div>
           </form>

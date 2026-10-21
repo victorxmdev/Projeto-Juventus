@@ -11,6 +11,7 @@ import { TacticalBoard } from './components/tactical/TacticalBoard';
 import { MatchList } from './components/matches/MatchList';
 import { PhysicalModule } from './components/physical/PhysicalModule';
 import { GoalkeeperModule } from './components/goalkeeper/GoalkeeperModule';
+import { PdiModule } from './components/pdi/PdiModule';
 import { SupabaseSettingsModal } from './components/settings/SupabaseSettingsModal';
 import { RegulationsModal } from './components/regulations/RegulationsModal';
 
@@ -54,6 +55,7 @@ const AppContent: React.FC = () => {
           {activeTab === 'matches' && <MatchList />}
           {activeTab === 'physical' && <PhysicalModule />}
           {activeTab === 'goalkeeper' && <GoalkeeperModule />}
+          {activeTab === 'pdi' && <PdiModule />}
         </main>
       </div>
 

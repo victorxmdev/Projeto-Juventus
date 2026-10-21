@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 
 export const WeeklyMonthlyCalendar: React.FC = () => {
-  const { calendarEvents, matches, addCalendarEvent, deleteCalendarEvent, weeklySchedule, putPlans } = useData();
+  const { calendarEvents, matches, addCalendarEvent, deleteCalendarEvent, weeklySchedule, putPlans, attachScheduleFile } = useData();
   const { championship, getChampionshipTitle } = useChampionship();
 
   const [viewMode, setViewMode] = useState<'microcycle' | 'week' | 'month'>('microcycle');
@@ -848,6 +848,8 @@ export const WeeklyMonthlyCalendar: React.FC = () => {
         isOpen={isPdfModalOpen}
         onClose={() => setIsPdfModalOpen(false)}
         title="Programação Semanal Sub-20 (PDF Oficial na Nuvem)"
+        pdfUrl={weeklySchedule.attachedPdfUrl || weeklySchedule.attachedImageUrl}
+        onSavePdfUrl={(url) => attachScheduleFile(url, 'pdf')}
         onSyncWeeklyStatus={handleSyncWeeklyStatus}
       />
 

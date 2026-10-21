@@ -6,7 +6,8 @@ import {
   Layers, 
   Trophy, 
   Activity, 
-  ShieldAlert 
+  ShieldAlert,
+  Target 
 } from 'lucide-react';
 import { ActiveTab } from './Sidebar';
 
@@ -18,6 +19,7 @@ interface MobileNavProps {
 export const MobileNav: React.FC<MobileNavProps> = ({ activeTab, setActiveTab }) => {
   const items = [
     { id: 'roster' as ActiveTab, label: 'Plantel', icon: Users },
+    { id: 'pdi' as ActiveTab, label: 'PDI', icon: Target },
     { id: 'calendar' as ActiveTab, label: 'Agenda', icon: Calendar },
     { id: 'microcycle' as ActiveTab, label: 'Treinos', icon: ClipboardCheck },
     { id: 'tactical' as ActiveTab, label: 'Prancheta', icon: Layers },

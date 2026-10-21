@@ -129,9 +129,13 @@ export const PositionDashboard: React.FC = () => {
                         {/* Athlete Top Row */}
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
-                            <span className="w-5 h-5 rounded-full bg-white border border-slate-200 text-slate-700 font-black text-[10px] flex items-center justify-center flex-shrink-0 group-hover:border-[#631426] group-hover:text-[#631426]">
-                              {player.number}
-                            </span>
+                            {player.photoUrl ? (
+                              <img src={player.photoUrl} alt={player.name} className="w-5 h-5 rounded-full object-cover border border-slate-200 flex-shrink-0" />
+                            ) : (
+                              <span className="w-5 h-5 rounded-full bg-white border border-slate-200 text-slate-700 font-black text-[10px] flex items-center justify-center flex-shrink-0 group-hover:border-[#631426] group-hover:text-[#631426]">
+                                {player.number}
+                              </span>
+                            )}
                             <span className="text-xs font-bold text-slate-800 truncate group-hover:text-[#631426] transition-colors">
                               {player.name}
                             </span>

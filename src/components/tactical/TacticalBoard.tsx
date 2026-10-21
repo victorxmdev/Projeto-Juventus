@@ -26,14 +26,103 @@ import {
   Search,
   Check,
   Film,
-  Tag
+  Tag,
+  FolderOpen,
+  Plus,
+  CheckCircle2
 } from 'lucide-react';
 import { TacticalPiece, TacticalArrow, Match, PreparatoryMatchVideo } from '../../types';
 import { useData } from '../../context/DataContext';
 import { INITIAL_PREPARATORY_VIDEOS } from '../../data/seedData';
+import { Modal } from '../common/Modal';
 
 type PitchType = 'full' | 'half' | 'box';
 type ToolType = 'select' | 'player' | 'goalkeeper' | 'ball' | 'cone' | 'disc' | 'ring' | 'vest' | 'pole' | 'barrier' | 'minigoal' | 'arrow_pass' | 'arrow_run' | 'arrow_carry';
+
+export interface SavedTacticalExercise {
+  id: string;
+  title: string;
+  pitchType: PitchType;
+  rules: string;
+  variations: string;
+  feedbacks: string;
+  pieces: TacticalPiece[];
+  arrows: TacticalArrow[];
+  createdAt: string;
+}
+
+const INITIAL_SAVED_EXERCISES: SavedTacticalExercise[] = [
+  {
+    id: 'tac_ex_1',
+    title: 'Jogo de Posição 4x4 + 3 Coringas (Posse & Atração)',
+    pitchType: 'box',
+    rules: 'Espaço 30x30m. 4 vs 4 com 3 jogadores coringas (2 laterais e 1 central). Manutenção da posse com objetivo de atrair no lado e inverter com rapidez.',
+    variations: '1) Máximo de 2 toques por atleta. 2) Pontuação ao circular por todos os coringas sem perda.',
+    feedbacks: 'Perfilamento corporal antes da recepção; visão periférica ativa; pressão imediata na perda (3 segundos).',
+    pieces: [
+      { id: 'pc1', type: 'goalkeeper', x: 10, y: 50, label: '1', color: '#EAB308' },
+      { id: 'pc2', type: 'player', x: 25, y: 25, label: '4', color: '#631426' },
+      { id: 'pc3', type: 'player', x: 25, y: 75, label: '6', color: '#631426' },
+      { id: 'pc4', type: 'player', x: 40, y: 50, label: '5', color: '#631426' },
+      { id: 'pc5', type: 'player', x: 55, y: 35, label: '8', color: '#631426' },
+      { id: 'pc6', type: 'player', x: 55, y: 65, label: '10', color: '#631426' },
+      { id: 'pc7', type: 'player', x: 75, y: 50, label: '9', color: '#631426' },
+      { id: 'pc8', type: 'ball', x: 42, y: 50, color: '#FFFFFF' },
+      { id: 'pc9', type: 'player', x: 60, y: 48, label: '5', color: '#FFFFFF' },
+      { id: 'pc10', type: 'player', x: 70, y: 30, label: '2', color: '#FFFFFF' }
+    ],
+    arrows: [
+      { id: 'ar1', fromX: 42, fromY: 50, toX: 55, toY: 65, style: 'pass', color: '#C2F07C' },
+      { id: 'ar2', fromX: 55, fromY: 65, toX: 75, toY: 50, style: 'run', color: '#FACC15' }
+    ],
+    createdAt: '2026-10-18'
+  },
+  {
+    id: 'tac_ex_2',
+    title: 'Saída de Bola Lavolpiana (3+1) vs Bloco Alto (4-4-2)',
+    pitchType: 'half',
+    rules: 'Goleiro e primeiro volante afundam entre os zagueiros criando linha de 3. Laterais sobem na linha média para dar amplitude máxima.',
+    variations: '1) Saída com passe no volante que apoia e devolve. 2) Bola longa cruzada no lateral oposto em caso de pressão em bloco.',
+    feedbacks: 'Goleiro atua como líbero; zagueiros abertos na largura da grande área; primeiro volante sempre em diagonal de passe.',
+    pieces: [
+      { id: 'p_gk', type: 'goalkeeper', x: 50, y: 88, label: '1', color: '#EAB308' },
+      { id: 'p_zag1', type: 'player', x: 26, y: 72, label: '3', color: '#631426' },
+      { id: 'p_zag2', type: 'player', x: 74, y: 72, label: '4', color: '#631426' },
+      { id: 'p_vol', type: 'player', x: 50, y: 68, label: '5', color: '#631426' },
+      { id: 'p_lat1', type: 'player', x: 12, y: 40, label: '6', color: '#631426' },
+      { id: 'p_lat2', type: 'player', x: 88, y: 40, label: '2', color: '#631426' },
+      { id: 'p_opp1', type: 'player', x: 42, y: 55, label: '9', color: '#FFFFFF' },
+      { id: 'p_opp2', type: 'player', x: 58, y: 55, label: '10', color: '#FFFFFF' }
+    ],
+    arrows: [
+      { id: 'ar_ex2', fromX: 50, fromY: 88, toX: 26, toY: 72, style: 'pass', color: '#C2F07C' },
+      { id: 'ar_ex3', fromX: 26, fromY: 72, toX: 12, toY: 40, style: 'run', color: '#FACC15' }
+    ],
+    createdAt: '2026-10-16'
+  },
+  {
+    id: 'tac_ex_3',
+    title: 'Transição Ofensiva Rápida em Corredor Central (3x2 + 1)',
+    pitchType: 'full',
+    rules: 'Após recuperação na zona 2, os meias devem acionar em profundidade no máximo em 2 passes. Finalização em até 6 segundos.',
+    variations: '1) Obrigatório cruzamento de segunda trave. 2) Inclusão de um zagueiro recompondo em velocidade.',
+    feedbacks: 'Verticalidade imediata; atacante central ataca a primeira trave arrastando a marcação; extremo oposto fecha na segunda trave.',
+    pieces: [
+      { id: 'p_meia', type: 'player', x: 40, y: 50, label: '10', color: '#631426' },
+      { id: 'p_ata1', type: 'player', x: 65, y: 30, label: '7', color: '#631426' },
+      { id: 'p_ata2', type: 'player', x: 70, y: 50, label: '9', color: '#631426' },
+      { id: 'p_ata3', type: 'player', x: 65, y: 70, label: '11', color: '#631426' },
+      { id: 'p_def1', type: 'player', x: 75, y: 42, label: '3', color: '#FFFFFF' },
+      { id: 'p_def2', type: 'player', x: 75, y: 58, label: '4', color: '#FFFFFF' },
+      { id: 'p_gk_opp', type: 'goalkeeper', x: 92, y: 50, label: '1', color: '#3B82F6' }
+    ],
+    arrows: [
+      { id: 'ar_ex4', fromX: 40, fromY: 50, toX: 65, toY: 30, style: 'pass', color: '#C2F07C' },
+      { id: 'ar_ex5', fromX: 65, fromY: 30, toX: 85, toY: 45, style: 'run', color: '#FACC15' }
+    ],
+    createdAt: '2026-10-14'
+  }
+];
 
 export const TacticalBoard: React.FC = () => {
   const { matches } = useData();
@@ -86,10 +175,24 @@ export const TacticalBoard: React.FC = () => {
     );
   });
 
-  // Exercise text fields
-  const [rules, setRules] = useState('Jogo de posição 4x4 + 3 coringas em espaço reduzido (30x30m). O time que tem a posse busca atrair a pressão para inverter o corredor.');
-  const [variations, setVariations] = useState('1) Limite de 2 toques por atleta. 2) Gol só é válido após passe de um dos apoios neutros.');
-  const [feedbacks, setFeedbacks] = useState('Ajustar perfil do corpo antes de receber. Girar a cabeça para escanear opções. Pressão imediata ao perder a bola (reação em 3 segundos).');
+  // Exercise metadata and text fields
+  const [exerciseTitle, setExerciseTitle] = useState('Jogo de Posição 4x4 + 3 Coringas (Posse & Atração)');
+  const [rules, setRules] = useState('Espaço 30x30m. 4 vs 4 com 3 jogadores coringas (2 laterais e 1 central). Manutenção da posse com objetivo de atrair no lado e inverter com rapidez.');
+  const [variations, setVariations] = useState('1) Máximo de 2 toques por atleta. 2) Pontuação ao circular por todos os coringas sem perda.');
+  const [feedbacks, setFeedbacks] = useState('Perfilamento corporal antes da recepção; visão periférica ativa; pressão imediata na perda (3 segundos).');
+
+  // Saved exercises storage
+  const [savedExercises, setSavedExercises] = useState<SavedTacticalExercise[]>(() => {
+    try {
+      const saved = localStorage.getItem('juventus_saved_tactical_exercises');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn(e);
+    }
+    return INITIAL_SAVED_EXERCISES;
+  });
+  const [isSavedExercisesModalOpen, setIsSavedExercisesModalOpen] = useState(false);
+  const [saveNotification, setSaveNotification] = useState<string | null>(null);
 
   // Canvas elements
   const [pieces, setPieces] = useState<TacticalPiece[]>([
@@ -495,6 +598,59 @@ export const TacticalBoard: React.FC = () => {
     link.click();
   };
 
+  const handleSaveCurrentExercise = () => {
+    const title = exerciseTitle.trim() || 'Exercício Tático Juventus';
+    const newEx: SavedTacticalExercise = {
+      id: `tac_ex_${Date.now()}`,
+      title,
+      pitchType,
+      rules,
+      variations,
+      feedbacks,
+      pieces,
+      arrows,
+      createdAt: new Date().toISOString().slice(0, 10)
+    };
+
+    const updated = [newEx, ...savedExercises.filter(ex => ex.title !== title)];
+    setSavedExercises(updated);
+    try {
+      localStorage.setItem('juventus_saved_tactical_exercises', JSON.stringify(updated));
+    } catch (e) {
+      console.warn(e);
+    }
+
+    setSaveNotification(`Exercício "${title}" salvo com sucesso no banco de dados!`);
+    setTimeout(() => setSaveNotification(null), 3500);
+  };
+
+  const handleLoadExercise = (ex: SavedTacticalExercise) => {
+    setExerciseTitle(ex.title);
+    setPitchType(ex.pitchType);
+    setRules(ex.rules);
+    setVariations(ex.variations);
+    setFeedbacks(ex.feedbacks);
+    setPieces(ex.pieces);
+    setArrows(ex.arrows);
+    pushHistory(ex.pieces, ex.arrows);
+    setIsSavedExercisesModalOpen(false);
+    setSaveNotification(`Exercício "${ex.title}" carregado na prancheta com sucesso!`);
+    setTimeout(() => setSaveNotification(null), 3000);
+  };
+
+  const handleDeleteSavedExercise = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm('Deseja excluir este exercício do banco de dados?')) {
+      const remaining = savedExercises.filter(ex => ex.id !== id);
+      setSavedExercises(remaining);
+      try {
+        localStorage.setItem('juventus_saved_tactical_exercises', JSON.stringify(remaining));
+      } catch (err) {
+        console.warn(err);
+      }
+    }
+  };
+
   return (
     <div className="space-y-4">
       
@@ -630,17 +786,24 @@ export const TacticalBoard: React.FC = () => {
             {/* Export and Save actions */}
             <div className="flex items-center gap-2">
               <button
+                onClick={() => setIsSavedExercisesModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700 transition-colors"
+                title="Abrir catálogo de exercícios táticos salvos"
+              >
+                <FolderOpen size={15} className="text-[#631426]" />
+                <span>Exercícios Salvos ({savedExercises.length})</span>
+              </button>
+
+              <button
                 onClick={handleExportPng}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700 transition-colors"
               >
                 <Download size={15} className="text-[#631426]" />
-                <span>Exportar PNG</span>
+                <span className="hidden sm:inline">Exportar PNG</span>
               </button>
 
               <button
-                onClick={() => {
-                  alert('Exercício tático salvo com sucesso! As diretrizes foram sincronizadas para a Ficha de Treino.');
-                }}
+                onClick={handleSaveCurrentExercise}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#631426] text-white font-semibold text-xs hover:bg-[#4E0F1E] transition-all shadow-sm"
               >
                 <Save size={15} />
@@ -649,6 +812,13 @@ export const TacticalBoard: React.FC = () => {
             </div>
 
           </div>
+
+          {saveNotification && (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm animate-fade-in">
+              <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+              <span>{saveNotification}</span>
+            </div>
+          )}
 
           {/* Main Tactical Workspace: Left Palette + Center Canvas + Right Activity Textareas */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
@@ -777,6 +947,20 @@ export const TacticalBoard: React.FC = () => {
                   <FileText size={15} className="text-[#631426]" />
                   Diretrizes da Atividade
                 </h3>
+
+                {/* TÍTULO DO EXERCÍCIO */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                    Nome / Título do Exercício
+                  </label>
+                  <input
+                    type="text"
+                    value={exerciseTitle}
+                    onChange={e => setExerciseTitle(e.target.value)}
+                    placeholder="Ex: Jogo de Posição 4x4 + 3 Coringas"
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-[#631426] focus:bg-white rounded-xl p-2 text-xs font-bold text-slate-900 focus:outline-none transition-colors"
+                  />
+                </div>
 
                 {/* REGRAS */}
                 <div>
@@ -1486,6 +1670,76 @@ export const TacticalBoard: React.FC = () => {
 
         </div>
       )}
+
+      {/* Modal: Catálogo de Exercícios Táticos Salvos */}
+      <Modal
+        isOpen={isSavedExercisesModalOpen}
+        onClose={() => setIsSavedExercisesModalOpen(false)}
+        title="Catálogo de Exercícios Táticos Salvos"
+        subtitle="Carregue qualquer desenho tático diretamente para a prancheta interativa"
+        maxWidth="lg"
+      >
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-xs text-slate-500 pb-2 border-b border-slate-100">
+            <span>Exercícios disponíveis ({savedExercises.length})</span>
+            <button
+              onClick={() => {
+                handleSaveCurrentExercise();
+              }}
+              className="text-[#631426] font-bold inline-flex items-center gap-1 hover:underline"
+            >
+              <Plus size={13} />
+              <span>Salvar Desenho Atual como Novo</span>
+            </button>
+          </div>
+
+          <div className="space-y-2.5 max-h-[480px] overflow-y-auto pr-1">
+            {savedExercises.map(ex => (
+              <div
+                key={ex.id}
+                className="p-3.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/70 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm"
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded bg-red-100 text-[#631426] uppercase">
+                      {ex.pitchType === 'full' ? 'Campo Inteiro' : ex.pitchType === 'half' ? 'Meio Campo' : 'Caixa de Área'}
+                    </span>
+                    <span className="text-[11px] text-slate-400 font-mono">
+                      {ex.createdAt}
+                    </span>
+                  </div>
+                  <h4 className="font-bold text-xs text-slate-900">{ex.title}</h4>
+                  <p className="text-[11px] text-slate-500 line-clamp-1">{ex.rules}</p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                  <button
+                    onClick={() => handleLoadExercise(ex)}
+                    className="px-3 py-1.5 rounded-lg bg-[#631426] hover:bg-[#4E0F1E] text-white font-bold text-xs transition-colors flex items-center gap-1.5 shadow-sm"
+                  >
+                    <span>Carregar</span>
+                    <ArrowRight size={13} />
+                  </button>
+
+                  <button
+                    onClick={(e) => handleDeleteSavedExercise(ex.id, e)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                    title="Excluir Exercício"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {savedExercises.length === 0 && (
+              <div className="p-8 text-center text-slate-400 text-xs">
+                Nenhum exercício salvo ainda. Desenhe sua jogada na prancheta e clique em "Salvar Exercício"!
+              </div>
+            )}
+          </div>
+        </div>
+      </Modal>
 
     </div>
   );
